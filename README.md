@@ -47,6 +47,21 @@
 
 更详细的 MLP 使用说明见 [01_mlp_lab/README.md](./01_mlp_lab/README.md)。
 
+### `02_cnn_lab`：CNN 与小型图像分类
+
+这是第二个已经完成并经过运行检查的实验室。第一版使用离线的 `8×8` 手写数字数据，让卷积核、特征图和池化结果更容易直接看清；代码同时保留了 `28×28` 输入接口，后续可以自然扩展到更完整的手写数字任务。
+
+| 顺序 | Notebook | 你会看到什么 |
+|---:|---|---|
+| 0 | [00_一键体验.ipynb](./02_cnn_lab/00_一键体验.ipynb) | 一次完整 CNN 训练、预测和诊断图 |
+| 1 | [01_图片数据与四维张量.ipynb](./02_cnn_lab/01_图片数据与四维张量.ipynb) | 图片、像素值与 `[N, C, H, W]` 四维张量 |
+| 2 | [02_卷积核与池化.ipynb](./02_cnn_lab/02_卷积核与池化.ipynb) | 卷积核响应、最大池化和平均池化 |
+| 3 | [03_训练第一个CNN.ipynb](./02_cnn_lab/03_训练第一个CNN.ipynb) | Loss、Accuracy、混淆矩阵、错误样本与特征图 |
+| 4 | [04_CNN组件对比实验.ipynb](./02_cnn_lab/04_CNN组件对比实验.ipynb) | 不同池化方式的单变量对比 |
+| 5 | [05_自主修改练习.ipynb](./02_cnn_lab/05_自主修改练习.ipynb) | 修改卷积通道数，并与基线结果比较 |
+
+更详细的 CNN 使用说明见 [02_cnn_lab/README.md](./02_cnn_lab/README.md)。
+
 ## 🔍 运行一次实验，可以观察哪些信息？
 
 - 输入数据和 tensor shape；
@@ -91,6 +106,7 @@ cd 2026DeeplearningDemo
 conda activate dl2026
 python check_environment.py
 python 01_mlp_lab/test_mlp_smoke.py
+python 02_cnn_lab/test_cnn_smoke.py
 ```
 
 看到以下内容，说明基本环境和 MLP 实验可以运行：
@@ -98,6 +114,7 @@ python 01_mlp_lab/test_mlp_smoke.py
 ```text
 环境自检通过，可以离线运行课堂 Demo。
 MLP smoke test passed.
+CNN smoke test passed.
 ```
 
 ### 第三步：打开第一份 Notebook
@@ -114,7 +131,7 @@ MLP smoke test passed.
 | 实验室 | 状态 | 主要内容 | 计划展示 |
 |---|---|---|---|
 | `01_mlp_lab` | ✅ 已完成 | MLP、激活函数、优化器和二维分类 | 决策边界、Loss、Accuracy、梯度 |
-| `02_cnn_lab` | 🛠️ 待建设 | 卷积、池化、特征提取和图像分类 | 卷积核、特征图、混淆矩阵、错误样本 |
+| `02_cnn_lab` | ✅ 已完成 | 卷积、池化、特征提取和图像分类 | 卷积核、特征图、混淆矩阵、错误样本 |
 | `03_rnn_lab` | 🧭 待建设 | RNN、LSTM、GRU 和长期依赖 | 序列预测、梯度、长度对比、训练时间 |
 
 后续实验室会继续采用相同的六步路线：先快速看到结果，再理解数据、训练规则和训练过程，最后完成组件对比与自主修改。
@@ -133,7 +150,7 @@ MLP smoke test passed.
 - 根目录的 [README.md](./README.md)：GitHub 仓库首页，介绍整个课程项目、学习路线和建设计划；
 - [01_mlp_lab/README.md](./01_mlp_lab/README.md)：MLP 子项目说明，介绍六份 Notebook、代码结构和具体运行方法。
 
-以后新增 `02_cnn_lab` 和 `03_rnn_lab` 时，它们也会拥有各自的 README。根目录 README 负责“带你找到方向”，子目录 README 负责“带你完成这个实验”。
+每个已完成的实验室都有自己的 README；以后新增 `03_rnn_lab` 时也会沿用这一结构。根目录 README 负责“带你找到方向”，子目录 README 负责“带你完成这个实验”。
 
 ## 💡 一个小建议
 

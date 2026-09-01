@@ -31,8 +31,9 @@
 3. 点击 `Run All`；
 4. 看到结果表、训练阶段图和最终诊断图后，再进入下一份 notebook。
 
-Notebook 默认使用 `device="auto"`：检测到可用 CUDA 时使用 GPU，否则自动使用 CPU。
-如果需要固定设备，可以改为 `device="cpu"` 或 `device="cuda"`。
+Notebook 默认使用 `device="cpu"`，适合多人共享服务器。只有获得课堂分配后才改用
+`device="cuda:x"`，并把 `x` 替换为指定的 GPU 编号，例如第 3 块写成 `cuda:3`。
+不要使用 `auto` 抢占未分配的 GPU。
 
 ## 代码结构
 
@@ -67,8 +68,8 @@ results = compare("activation")
 ## 命令行入口
 
 ```bash
-python demo.py --device auto --mode fast --experiment baseline
-python demo.py --device auto --mode fast --experiment activation
+python demo.py --device cpu --mode fast --experiment baseline
+python demo.py --device cpu --mode fast --experiment activation
 ```
 
 ## 最短检查
@@ -78,3 +79,6 @@ python test_mlp_smoke.py
 ```
 
 看到 `MLP smoke test passed.` 表示数据、训练、绘图、简洁 API 和日志链路均可运行。
+
+每份 Notebook 最后都有“清理并结束内核”单元格。运行它会清空变量、释放未使用的
+CUDA 缓存，并正常结束当前 Python 进程。VS Code 随后显示内核停止或要求重新选择内核属于正常现象。

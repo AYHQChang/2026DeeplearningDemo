@@ -131,7 +131,7 @@ def build_parser() -> argparse.ArgumentParser:
     """
 
     parser = argparse.ArgumentParser(description="MLP 组件与决策边界课堂实验室")
-    parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto", help="运行设备，默认自动选择")
+    parser.add_argument("--device", default="cpu", help="运行设备：cpu、auto、cuda 或 cuda:编号；课堂默认 CPU")
     parser.add_argument("--mode", choices=("fast", "extended"), default="fast", help="课堂快速模式或课后扩展模式")
     parser.add_argument("--dataset", choices=("moons", "circles", "spiral"), default="spiral", help="二维数据集")
     parser.add_argument(

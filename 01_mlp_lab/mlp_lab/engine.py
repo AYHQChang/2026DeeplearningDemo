@@ -156,7 +156,7 @@ def mode_defaults(mode: str) -> dict[str, int]:
     raise ValueError('mode 只能是 fast 或 extended。')
 
 
-def base_config(dataset: str='spiral', mode: str='fast', seed: int=42, device: str='auto') -> ExperimentConfig:
+def base_config(dataset: str='spiral', mode: str='fast', seed: int=42, device: str='cpu') -> ExperimentConfig:
     defaults = mode_defaults(mode)
     dataset_noise = {'moons': 0.2, 'circles': 0.2, 'spiral': 0.45}
     if dataset not in dataset_noise:

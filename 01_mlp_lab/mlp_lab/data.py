@@ -26,6 +26,8 @@ class DatasetBundle:
 
 
 def seed_everything(seed: int) -> None:
+    # 共享服务器课堂模式：避免几十个 Notebook 各自占满全部 CPU 线程。
+    torch.set_num_threads(1)
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -34,10 +36,13 @@ def seed_everything(seed: int) -> None:
 
 
 def resolve_device(requested: str) -> torch.device:
-    if requested not in {'auto', 'cpu', 'cuda'}:
-        raise ValueError('device 只能是 auto、cpu 或 cuda。')
-    if requested == 'cuda' and (not torch.cuda.is_available()):
+    indexed_cuda = requested.startswith('cuda:') and requested[5:].isdigit()
+    if requested not in {'auto', 'cpu', 'cuda'} and not indexed_cuda:
+        raise ValueError('device 只能是 auto、cpu、cuda 或 cuda:编号。')
+    if requested.startswith('cuda') and (not torch.cuda.is_available()):
         raise RuntimeError('当前 PyTorch 环境检测不到 CUDA。请改用 --device cpu，或课前安装与显卡驱动匹配的 CUDA 版 PyTorch。')
+    if indexed_cuda and int(requested[5:]) >= torch.cuda.device_count():
+        raise RuntimeError(f'找不到第 {requested[5:]} 块 GPU；当前可见 GPU 数量为 {torch.cuda.device_count()}。')
     if requested == 'auto':
         return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     return torch.device(requested)

@@ -26,6 +26,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 
 from core import (
     base_config,
@@ -51,6 +52,8 @@ def main() -> None:
     """
 
     assert resolve_device("cpu").type == "cpu"
+    assert base_config().device == "cpu"
+    assert build_parser().parse_args([]).device == "cpu"
     # 模拟没有 CUDA 的电脑，确认显式请求 GPU 时给出清楚的中文错误。
     with patch("mlp_lab.data.torch.cuda.is_available", return_value=False):
         try:
@@ -59,6 +62,17 @@ def main() -> None:
             assert "检测不到 CUDA" in str(error)
         else:
             raise AssertionError("CUDA 不可用时，resolve_device('cuda') 应报错。")
+    with (
+        patch("mlp_lab.data.torch.cuda.is_available", return_value=True),
+        patch("mlp_lab.data.torch.cuda.device_count", return_value=2),
+    ):
+        assert resolve_device("cuda:1").index == 1
+        try:
+            resolve_device("cuda:2")
+        except RuntimeError as error:
+            assert "找不到第 2 块 GPU" in str(error)
+        else:
+            raise AssertionError("GPU 编号越界时应报错。")
 
     data = make_dataset("moons", n_samples=180, seed=7)
     assert data.x_train_raw.shape == data.x_train.shape
@@ -86,6 +100,7 @@ def main() -> None:
         hidden_sizes=(8,),
     )
     result = train_experiment(config, data=data)
+    assert torch.get_num_threads() == 1
     assert len(result.train_loss) == config.epochs
     assert all(np.isfinite(result.train_loss))
     assert 0.0 <= result.final_test_accuracy <= 1.0

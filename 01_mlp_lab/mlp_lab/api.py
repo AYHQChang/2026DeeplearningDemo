@@ -47,7 +47,7 @@ def quick_demo(
     epochs: int = 40,
     n_samples: int = 360,
     seed: int = 42,
-    device: str = "auto",
+    device: str = "cpu",
     show_story: bool = True,
 ) -> TrainingResult:
     """Train one model, print its summary and immediately display the result."""
@@ -78,7 +78,7 @@ def compare(
     epochs: int = 35,
     n_samples: int = 360,
     seed: int = 42,
-    device: str = "auto",
+    device: str = "cpu",
 ) -> list[TrainingResult]:
     """Run one controlled component comparison and display its figure."""
     if component not in COMPARISON_TITLES:
