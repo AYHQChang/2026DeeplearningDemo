@@ -1,0 +1,575 @@
+# VS Code Remote-SSH 连接 Linux 服务器与失败排查
+
+本文记录在 Windows 电脑上使用 VS Code Remote-SSH 连接课程 Linux 服务器的配置方法，以及两种已经出现过的连接失败场景。示例统一使用学生账号，适合课堂演示和学生自行排查。
+
+> 安全说明：本文不记录账号密码。密码应在 SSH 或 VS Code 弹出的登录提示中临时输入，不应写入 SSH config、VS Code settings.json、程序代码、截图或提交到 Git 仓库。
+
+## 1. 本次连接参数
+
+| 参数 | 值 | 说明 |
+|---|---|---|
+| VS Code 中的连接别名 | `ayit-student` | 本机自定义名称，不是服务器真实主机名 |
+| 服务器 IP | `172.23.168.7` | 内网 IPv4 地址 |
+| SSH 端口 | `22` | SSH 服务端口 |
+| 学生用户名 | `ayitchqxs` | 登录 Linux 时使用的账号 |
+| 远端主机名 | `ag-g-02` | 登录成功后终端提示符中观察到的主机名 |
+| 主机密钥类型 | `ED25519` | 首次连接时由服务器提供 |
+| 主机密钥指纹 | `SHA256:4H6d/eMpsuawT0DEW3KG/aPy7gZU/o1Mb1jrbWyW6zA` | 首次连接时用于核验服务器身份 |
+| 身份验证方式 | 密码交互式验证 | 密码不写入配置文件 |
+
+`172.23.168.7` 是内网地址。学生电脑需要处于能够访问该地址的网络环境中，例如指定校园网络或学校提供的 VPN；具体接入方式以学校网络要求为准。
+
+## 2. 需要准备的软件
+
+1. Windows 10 或 Windows 11。
+2. Visual Studio Code。
+3. VS Code 扩展 `Remote - SSH`。
+4. Windows OpenSSH Client。
+
+在 PowerShell 中检查 SSH 客户端：
+
+```powershell
+ssh -V
+```
+
+本次排查时使用的客户端输出为：
+
+```text
+OpenSSH_for_Windows_9.5p1, LibreSSL 3.8.2
+```
+
+如果系统提示无法识别 `ssh` 命令，需要先在 Windows“可选功能”中安装 OpenSSH Client。
+
+## 3. 配置 SSH 主机
+
+### 3.1 配置文件位置
+
+当前电脑的 SSH 配置文件为：
+
+```text
+C:\Users\haoqi\.ssh\config
+```
+
+在其他学生电脑上，可以用以下通用路径表示：
+
+```text
+%USERPROFILE%\.ssh\config
+```
+
+文件名是 `config`，没有 `.txt` 后缀。
+
+### 3.2 完整的学生账号配置
+
+如果课堂只使用学生账号，可以将 SSH config 写为：
+
+```sshconfig
+Host ayit-student
+    HostName 172.23.168.7
+    Port 22
+    User ayitchqxs
+    PasswordAuthentication yes
+```
+
+各行含义：
+
+- `Host ayit-student`：定义一个本机连接别名，VS Code 中选择该名称。
+- `HostName 172.23.168.7`：指定服务器 IP，只填写 IP，不附加端口。
+- `Port 22`：单独指定 SSH 端口。
+- `User ayitchqxs`：指定登录使用的学生用户名。
+- `PasswordAuthentication yes`：允许客户端使用密码验证；该参数只能写 `yes` 或 `no`，不能填写实际密码。
+
+### 3.3 检查配置解析结果
+
+以下命令只解析配置，不执行登录：
+
+```powershell
+ssh -G -F "$env:USERPROFILE\.ssh\config" ayit-student | Select-String '^(hostname|user|port|passwordauthentication) '
+```
+
+应当能够看到与以下内容一致的关键结果：
+
+```text
+hostname 172.23.168.7
+user ayitchqxs
+port 22
+passwordauthentication yes
+```
+
+## 4. 配置 VS Code Remote-SSH
+
+在 VS Code 中按 `Ctrl+Shift+P`，运行：
+
+```text
+Preferences: Open User Settings (JSON)
+```
+
+应打开用户级 `settings.json`，而不是工作区级设置。当前电脑的典型位置是：
+
+```text
+C:\Users\haoqi\AppData\Roaming\Code\User\settings.json
+```
+
+课堂示例使用以下完整配置：
+
+```json
+{
+    "remote.SSH.useExecServer": false,
+    "remote.SSH.enableRemoteCommand": false,
+    "remote.SSH.useLocalServer": false,
+    "remote.SSH.showLoginTerminal": true,
+    "remote.SSH.connectTimeout": 60,
+    "remote.SSH.path": "C:\\Windows\\System32\\OpenSSH\\ssh.exe",
+    "remote.SSH.remotePlatform": {
+        "ayit-student": "linux"
+    }
+}
+```
+
+关键设置说明：
+
+- `remote.SSH.useLocalServer: false`：在本次 Windows 密码登录场景中，避免连接流程停留在未显示的 askpass 密码请求上。
+- `remote.SSH.showLoginTerminal: true`：显示登录终端，使密码提示和服务器返回信息可见。
+- `remote.SSH.connectTimeout: 60`：将连接阶段超时延长到 60 秒，给首次验证和密码输入留出时间。
+- `remote.SSH.path`：明确使用 Windows 自带的 OpenSSH 客户端。JSON 中的反斜杠需要写成 `\\`。
+- `remote.SSH.remotePlatform`：声明 `ayit-student` 的远端操作系统为 Linux。
+
+保存后按 `Ctrl+Shift+P`，运行：
+
+```text
+Developer: Reload Window
+```
+
+重新加载后，新设置才会完整进入下一次 Remote-SSH 连接过程。
+
+## 5. 第一次连接：先在 PowerShell 中建立信任
+
+第一次连接建议先使用 PowerShell：
+
+```powershell
+ssh -F "$env:USERPROFILE\.ssh\config" ayit-student
+```
+
+服务器可能返回：
+
+```text
+The authenticity of host '172.23.168.7 (172.23.168.7)' can't be established.
+ED25519 key fingerprint is SHA256:4H6d/eMpsuawT0DEW3KG/aPy7gZU/o1Mb1jrbWyW6zA.
+Are you sure you want to continue connecting (yes/no/[fingerprint])?
+```
+
+处理步骤：
+
+1. 将屏幕上的指纹与课程提供的指纹核对。
+2. 指纹一致时输入 `yes`。
+3. SSH 将该主机写入本机 `known_hosts`。
+4. 出现 `ayitchqxs@172.23.168.7's password:` 后输入学生账号密码。
+5. 输入密码时终端不会显示字符、圆点或星号，这是正常行为。
+
+登录成功后，可看到类似提示符：
+
+```text
+[ayitchqxs@ag-g-02 ~]$
+```
+
+退出服务器：
+
+```bash
+exit
+```
+
+如果误输入为 `eixt`，Bash 会返回 `command not found`；重新输入正确的 `exit` 即可。
+
+## 6. 使用 VS Code 连接
+
+1. 在 VS Code 中按 `Ctrl+Shift+P`。
+2. 运行 `Remote-SSH: Connect to Host...`。
+3. 选择 `ayit-student`。
+4. 如果询问远端平台，选择 `Linux`。
+5. 在登录终端出现密码提示后输入学生账号密码。
+6. 首次连接时等待 VS Code Server 在远端安装并启动。
+
+连接成功后，VS Code 左下角通常会显示类似状态：
+
+```text
+SSH: ayit-student
+```
+
+此时通过“文件 → 打开文件夹”选择的是服务器上的 Linux 路径，不是本机 Windows 路径。
+
+## 7. 已出现的失败场景一：SSH config 语法错误
+
+### 7.1 现象
+
+Remote-SSH 日志包含：
+
+```text
+C:\Users\haoqi\.ssh\config line 7: unsupported option "<redacted>".
+C:\Users\haoqi\.ssh\config: terminating, 1 bad configuration options
+Failed to parse remote port from server output
+```
+
+### 7.2 原因
+
+SSH 在读取本机 config 时遇到非法配置，尚未开始连接服务器。常见错误包括：
+
+```sshconfig
+Host 172.23.168.7:22
+HostName 172.23.168.7:22
+PasswordAuthentication <实际密码>
+```
+
+问题分别是：
+
+1. `HostName` 中不应附加 `:22`，端口应由 `Port 22` 单独指定。
+2. `PasswordAuthentication` 是布尔选项，只接受 `yes` 或 `no`。
+3. SSH config 不能用该字段保存登录密码。
+4. `Failed to parse remote port` 是配置解析终止后的连带报错，不是主要原因。
+
+### 7.3 修复
+
+将配置改为第 3.2 节的标准形式，保存后先执行：
+
+```powershell
+ssh -G -F "$env:USERPROFILE\.ssh\config" ayit-student
+```
+
+配置能够正常解析后，再测试实际登录。
+
+## 8. 已出现的失败场景二：命令行能登录，但 VS Code 超时
+
+### 8.1 现象
+
+Remote-SSH 日志显示已经获得服务器主机密钥：
+
+```text
+debug1: Server host key: ssh-ed25519 SHA256:4H6d/eMpsuawT0DEW3KG/aPy7gZU/o1Mb1jrbWyW6zA
+```
+
+随后在约 17 秒后结束：
+
+```text
+Using connect timeout of 17 seconds
+Resolver error: Error: Connecting with SSH timed out
+```
+
+同一台电脑使用以下命令可以正常输入密码并登录：
+
+```powershell
+ssh -F "$env:USERPROFILE\.ssh\config" ayit-student
+```
+
+### 8.2 判断依据
+
+- 已收到服务器主机密钥：说明服务器 IP、22 端口和基础网络连接可用。
+- PowerShell 登录成功：说明学生用户名、密码验证和服务器 SSH 服务可用。
+- VS Code 日志没有出现 `Showing password prompt` 或 `Authenticated to ...`：连接停留在身份验证交互阶段。
+- 原日志仍显示 `remote.SSH.useLocalServer = true` 和 17 秒超时：用户设置尚未切换到适合当前密码交互的方式。
+
+因此，本场景的排查重点是 VS Code 的密码提示通道和连接超时，而不是修改服务器账号或重新配置 IP。
+
+### 8.3 修复
+
+1. 使用第 4 节的完整 `settings.json`。
+2. 确认修改的是 User Settings，而不是 Workspace Settings。
+3. 执行 `Developer: Reload Window`。
+4. 重新连接后检查日志，预期应出现：
+
+```text
+remote.SSH.useLocalServer = false
+```
+
+5. 在可见的登录终端中输入密码。
+
+如果日志仍显示 `remote.SSH.useLocalServer = true`，应检查 `settings.json` 中是否存在重复键，或是否修改了错误的设置层级。
+
+## 9. 已出现的失败场景三：VS Code Server 下载成功，但旧版系统运行库不兼容
+
+### 9.1 现象
+
+本次连接使用以下本地组件：
+
+```text
+VS Code version: 1.135.0
+Remote-SSH version: 0.129.2026082615
+OpenSSH_for_Windows_9.5p1
+```
+
+密码输入成功后，VS Code 开始在远端安装与当前桌面版本匹配的 VS Code Server。日志先出现远端 `wget` 失败：
+
+```text
+Downloading with wget
+wget download failed
+wget: unrecognized option '--no-config'
+Trigger local server download
+```
+
+随后 VS Code 自动切换为“Windows 本地下载，再通过 SCP 上传”的回退流程：
+
+```text
+Downloading VS Code server locally...
+Downloaded VS Code server
+Preparing to scp to host ayit-student
+vscode-server.tar.gz 100% 213MB
+Found flag and server on host
+```
+
+压缩包已经上传并成功解压，但启动前的运行库检查失败：
+
+```text
+Warning: Missing GLIBCXX >= 3.4.25! from /usr/lib64/libstdc++.so.6.0.19
+Warning: Missing GLIBC >= 2.28! from /usr/lib64/libc-2.17.so
+Error: Missing required dependencies.
+exitCode==207==
+osReleaseId==centos==
+unpackResult==success==
+didLocalDownload==1==
+```
+
+VS Code 最终报告：
+
+```text
+The remote host does not meet the prerequisites for running VS Code Server
+```
+
+### 9.2 日志链路分析
+
+这次失败发生在 VS Code Server 的“启动前依赖检查”阶段，证据链如下：
+
+1. 已显示密码提示并继续执行远端安装脚本，说明 SSH 登录成功。
+2. 远端 `wget` 不认识 `--no-config`，说明该服务器上的 `wget` 较旧；但 Remote-SSH 已自动切换到本地下载，因此这不是最终失败原因。
+3. Windows 端已成功下载约 213 MB 的 `server-linux-x64` 压缩包。
+4. SCP 进度达到 `100%`，说明文件已经传到远端用户目录。
+5. `unpackResult==success`，说明 `tar` 解压成功。
+6. `glibc` 和 `libstdc++` 版本检查不通过，VS Code Server 因此以退出码 `207` 停止。
+
+当前远端日志识别为 CentOS，并显示 `glibc 2.17`。该运行库组合与 CentOS 7 的常见基线一致，但要确认具体发行版版本，仍应读取 `/etc/os-release`。
+
+### 9.3 当前版本的系统要求
+
+当前 VS Code Remote Development 对常规 x86_64 glibc Linux 主机的基础要求包括：
+
+- Linux kernel `>= 4.18`
+- glibc `>= 2.28`
+- libstdc++ 提供 `GLIBCXX >= 3.4.25`
+- 可用的 `tar`
+- Remote-SSH 还需要 SSH Server、Bash，以及 `curl` 或 `wget`
+
+微软当前文档将 CentOS/RHEL 8+列为满足要求的版本，将 CentOS/RHEL 7列为不支持。自 VS Code 1.99 起，预构建 VS Code Server 不再兼容低于上述 glibc 和 libstdc++ 要求的旧 Linux 系统。
+
+官方资料：
+
+- [Remote Development with Linux](https://code.visualstudio.com/docs/remote/linux)
+- [Remote Development FAQ：旧版 Linux 与自定义 sysroot](https://code.visualstudio.com/docs/remote/faq#_can-i-run-vs-code-server-on-older-linux-distributions)
+
+### 9.4 在服务器上核验环境
+
+学生可以通过普通 SSH 登录后执行只读命令，将结果交给任课教师或服务器管理员：
+
+```bash
+cat /etc/os-release
+uname -r
+ldd --version | head -n 1
+strings /usr/lib64/libstdc++.so.6 | grep GLIBCXX | sort -V | tail -n 1
+tar --version | head -n 1
+wget --version | head -n 1
+```
+
+本次日志已经确认：
+
+```text
+远端架构：x86_64
+远端系统系列：CentOS
+glibc：2.17，不满足 >= 2.28
+libstdc++：/usr/lib64/libstdc++.so.6.0.19，不满足所需 GLIBCXX >= 3.4.25
+tar：GNU tar 1.26，已完成解压
+```
+
+### 9.5 推荐处理方案
+
+#### 方案 A：由管理员提供受支持的 Linux 环境（推荐）
+
+由服务器管理员升级或迁移到符合要求的操作系统，例如 CentOS/RHEL 8+、Debian 10+或 Ubuntu 20.04+，并同时核验内核、glibc 和 libstdc++。也可以为课程分配满足要求的新虚拟机或计算节点。
+
+这是面向课堂批量使用时最稳定的方案。学生端不需要反复修改 VS Code、SSH config 或密码设置。
+
+#### 方案 B：由管理员配置自定义 sysroot（技术性临时方案）
+
+微软文档提供了旧 Linux 的技术性规避方法：在远端准备包含新版 glibc 和 libstdc++ 的独立 sysroot，安装 `patchelf >= 0.18`，并设置：
+
+```text
+VSCODE_SERVER_CUSTOM_GLIBC_LINKER
+VSCODE_SERVER_CUSTOM_GLIBC_PATH
+VSCODE_SERVER_PATCHELF_PATH
+```
+
+该方案被官方明确标记为“不受正式支持的技术性 workaround”，需要管理员构建、测试和维护，不适合作为学生个人操作步骤。
+
+#### 方案 C：课堂临时使用普通 SSH 与 SCP
+
+在服务器系统尚未调整时，普通 SSH 仍然可用。学生可以在本地编辑代码，通过 SCP 上传，再在 SSH 终端运行。例如：
+
+```powershell
+scp -F "$env:USERPROFILE\.ssh\config" .\example.py ayit-student:~/
+ssh -F "$env:USERPROFILE\.ssh\config" ayit-student
+```
+
+登录后执行：
+
+```bash
+python ~/example.py
+```
+
+这种方式不能提供完整的 VS Code 远端扩展、远端文件浏览和远端调试体验，但可作为管理员完成系统迁移前的课堂过渡方式。
+
+### 9.6 不建议的处理
+
+- 不建议学生自行替换 `/lib64/libc.so.6` 或覆盖系统 glibc。glibc 是大量系统程序的基础依赖，错误替换可能导致整台服务器命令无法运行。
+- 不建议把普通的 `yum update glibc` 当作本场景的学生端修复。旧发行版的软件源通常不会跨越到所需 ABI 版本，而且系统级升级需要管理员评估。
+- 不建议反复删除 `.vscode-server`。本次日志已经证明下载、上传和解压成功，删除后重新连接只会再次下载，不能改变系统运行库版本。
+- 不建议仅因远端 `wget --no-config` 报错就安装或替换 `wget`。Remote-SSH 已成功完成本地下载回退，最终阻断点不是下载工具。
+- 不建议让整班学生长期固定在过旧的 VS Code 版本。旧版客户端可能缺少安全更新和新功能，只能由管理员在隔离环境中评估是否作为短期应急方案。
+
+### 9.7 本场景结论
+
+学生端 SSH 配置、网络、主机指纹、密码验证、本地下载、SCP 上传和远端解压均已通过。当前唯一明确的阻断条件是服务器操作系统运行库低于当前 VS Code Server 的最低要求。该问题不能通过继续修改学生端 SSH config 解决，主要处理责任转移到服务器环境维护方。
+
+## 10. 分层排查方法
+
+排查时按照“配置 → 网络 → 主机身份 → 用户身份 → VS Code Server”的顺序进行，可避免反复修改无关设置。
+
+### 10.1 第一层：SSH config 是否能解析
+
+```powershell
+ssh -G -F "$env:USERPROFILE\.ssh\config" ayit-student
+```
+
+如果出现 `bad configuration options`、`unsupported option` 或 `Bad yes/no argument`，先修复 config，不继续排查服务器。
+
+### 10.2 第二层：IP 和端口是否可达
+
+```powershell
+Test-NetConnection 172.23.168.7 -Port 22
+```
+
+重点查看：
+
+```text
+TcpTestSucceeded : True
+```
+
+若为 `False`，检查当前网络、VPN、服务器是否开机以及 22 端口是否开放。
+
+### 10.3 第三层：主机指纹是否可信
+
+首次连接时核对 ED25519 指纹。查看本机是否已经记录该 IP：
+
+```powershell
+ssh-keygen -F 172.23.168.7
+```
+
+如果以后出现“REMOTE HOST IDENTIFICATION HAS CHANGED”，不要直接忽略或删除记录。先与服务器管理员核对服务器是否重装、密钥是否更换以及新指纹是否可信。
+
+### 10.4 第四层：账号能否在命令行登录
+
+```powershell
+ssh -F "$env:USERPROFILE\.ssh\config" ayit-student
+```
+
+可能结果：
+
+- 成功进入 `[ayitchqxs@ag-g-02 ~]$`：账号与服务器正常，继续排查 VS Code。
+- `Permission denied`：检查用户名、密码、账号状态或服务器允许的认证方式。
+- `Connection timed out`：检查网络路径、防火墙或 VPN。
+- `Connection refused`：目标 IP 可达，但 22 端口没有接受连接，需检查 SSH 服务或端口配置。
+
+### 10.5 第五层：查看更详细的 SSH 日志
+
+```powershell
+ssh -vvv -F "$env:USERPROFILE\.ssh\config" ayit-student
+```
+
+`-vvv` 会输出详细握手和认证过程。分享日志时应删除可能涉及隐私的路径、用户名或其他敏感信息，且不得附带密码。
+
+### 10.6 第六层：VS Code Server 安装阶段
+
+只有在日志已经出现 `Authenticated to 172.23.168.7` 后，才进入 VS Code Server 安装与启动阶段。如果此后失败，再检查：
+
+- 远端用户主目录是否可写。
+- 磁盘空间或用户配额是否充足。
+- 远端是否已有不完整的 `.vscode-server` 安装。
+- 服务器能否下载 VS Code Server，或本机是否能够代为下载并上传。
+- 登录脚本是否向非交互式 shell 输出额外内容。
+
+本次第三个失败场景已经进入该阶段，并通过日志证明下载、上传和解压成功，失败发生在运行库检查。因此仍不应将“删除远端 `.vscode-server`”作为首选操作。
+
+## 11. 常见现象与处理速查
+
+| 现象或日志 | 所处阶段 | 优先检查 |
+|---|---|---|
+| `unsupported option` | 本机配置解析 | SSH config 的行名和值 |
+| `Bad yes/no argument` | 本机配置解析 | `PasswordAuthentication` 是否为 `yes` 或 `no` |
+| 首次询问 `Are you sure...` | 主机身份确认 | 核对指纹后输入 `yes` |
+| 输入密码时没有任何字符显示 | 用户身份验证 | 正常现象，输入完成后按 Enter |
+| `Permission denied` | 用户身份验证 | 用户名、密码、账号状态、认证策略 |
+| 收到 host key 后约 17 秒超时 | VS Code 密码交互 | `showLoginTerminal`、`useLocalServer`、超时设置 |
+| PowerShell 能登录，VS Code 不能 | VS Code 客户端流程 | User Settings、登录终端和 Remote-SSH 日志 |
+| `Connection timed out` 且未收到 host key | 网络连接 | 网络、VPN、路由、防火墙 |
+| `Connection refused` | SSH 服务 | IP、端口和服务器 sshd 状态 |
+| 已认证后安装失败 | VS Code Server | 远端目录权限、空间、下载与启动日志 |
+| `wget: unrecognized option '--no-config'` 后自动上传 | 下载回退 | 继续观察后续日志；该行本身不一定是最终错误 |
+| `unpackResult==success` 后提示缺少 GLIBC/GLIBCXX | VS Code Server 运行库检查 | 由管理员升级系统或配置受控 sysroot |
+| `exitCode==207`、`LinuxPrereqs` | 远端系统兼容性 | 核验 kernel、glibc、libstdc++ 与官方最低要求 |
+
+## 12. 课堂演示建议顺序
+
+1. 展示 IP、端口、用户名和连接别名的区别。
+2. 编写最小 SSH config，不写密码。
+3. 使用 `ssh -G` 展示“只解析配置”。
+4. 使用 `Test-NetConnection` 展示“只测试网络和端口”。
+5. 使用普通 `ssh` 完成首次指纹确认和账号登录。
+6. 输入 `exit` 返回 Windows。
+7. 配置 VS Code User Settings 并重新加载窗口。
+8. 使用 Remote-SSH 连接，观察密码提示和左下角远端状态。
+9. 对照日志判断失败发生在哪一层，而不是一次性修改多个参数。
+10. 如果文件已上传和解压但运行库检查失败，区分学生端问题与服务器端兼容性问题。
+
+## 13. 学生实验记录模板
+
+学生完成连接后，可记录以下内容。密码不进入实验记录。
+
+```text
+日期：
+本机操作系统：
+VS Code 版本：
+Remote-SSH 扩展版本：
+当前网络环境：
+
+连接别名：ayit-student
+服务器 IP：172.23.168.7
+SSH 端口：22
+学生用户名：ayitchqxs
+
+ssh -G 是否成功：
+Test-NetConnection 的 TcpTestSucceeded：
+PowerShell SSH 是否成功：
+VS Code Remote-SSH 是否成功：
+远端发行版与版本：
+远端内核版本：
+远端 glibc 版本：
+远端最高 GLIBCXX 版本：
+
+若失败，最后一条关键日志：
+判断失败层级：配置 / 网络 / 主机身份 / 用户身份 / VS Code Server
+采取的处理：
+处理结果：
+```
+
+## 14. 本次排查结论
+
+本次连接过程先后出现三个独立问题：
+
+1. SSH config 将实际密码写在 `PasswordAuthentication` 后，导致本机 OpenSSH 在解析配置时终止。将该项改为 `yes`，并将 IP 与端口分开配置后，语法问题消失。
+2. PowerShell 已能使用学生账号成功登录，但 VS Code 在显示密码提示前超时。将 Remote-SSH 设置改为显示登录终端、关闭本地服务器模式，并延长连接超时后，连接流程可进入可见的密码交互阶段。
+3. VS Code 已完成密码验证、本地下载、SCP 上传和远端解压，但服务器的 glibc 2.17 与旧 libstdc++ 不满足当前 VS Code Server 的最低要求。该问题属于远端系统兼容性，需要管理员提供受支持的系统环境或实施受控的 sysroot workaround。
+
+排查结论基于分层验证：先证明配置可解析，再证明端口可达，随后证明命令行账号登录成功，再验证 VS Code 的密码交互和文件传输，最终将当前阻断点限定在远端 Linux 运行库兼容性。
