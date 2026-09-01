@@ -35,6 +35,7 @@ from core import (
     train_experiment,
 )
 from data_and_task import plot_data_explanation, plot_task_flow
+from mlp_lab import quick_demo
 from demo import build_parser, make_base_from_args, save_experiment_log
 
 
@@ -48,7 +49,7 @@ def main() -> None:
 
     assert resolve_device("cpu").type == "cpu"
     # 模拟没有 CUDA 的电脑，确认显式请求 GPU 时给出清楚的中文错误。
-    with patch("core.torch.cuda.is_available", return_value=False):
+    with patch("mlp_lab.data.torch.cuda.is_available", return_value=False):
         try:
             resolve_device("cuda")
         except RuntimeError as error:
@@ -93,6 +94,12 @@ def main() -> None:
 
     losses = comparison_configs("loss", config)
     assert {item.loss_name for item in losses} == {"cross_entropy", "mse"}
+
+    api_result = quick_demo(
+        dataset="moons", epochs=2, n_samples=90, device="cpu", show_story=False
+    )
+    assert 0.0 <= api_result.final_test_accuracy <= 1.0
+    plt.close("all")
 
     custom_args = build_parser().parse_args(
         ["--hidden-sizes", "8,8", "--activation", "tanh", "--optimizer", "sgd"]

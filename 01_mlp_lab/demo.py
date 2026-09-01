@@ -3,7 +3,7 @@
 这个文件只负责四件事：
 
 1. 用 ``argparse`` 接收设备、数据、组件、随机种子和运行模式；
-2. 把命令行参数转换成 ``ExperimentConfig``，调用 ``core.py`` 的唯一训练实现；
+2. 把命令行参数转换成 ``ExperimentConfig``，调用 ``mlp_lab`` 的共享训练实现；
 3. 在终端输出结果表，并显示或保存阶段图、诊断图和组件对比矩阵。
 4. 默认保存结构化 JSON、终端摘要 TXT，并把关键指标追加到 CSV 历史表。
 
@@ -279,8 +279,13 @@ def save_experiment_log(
     log_dir.mkdir(parents=True, exist_ok=True)
     now = datetime.now().astimezone()
     run_id = now.strftime("%Y%m%d_%H%M%S_%f")
+    mlp_sources = [LAB_DIR / "core.py", *sorted((LAB_DIR / "mlp_lab").glob("*.py"))]
+    digest = hashlib.sha256()
+    for source_path in mlp_sources:
+        digest.update(source_path.name.encode("utf-8"))
+        digest.update(source_path.read_bytes())
     source_hashes = {
-        "core.py": _sha256_file(LAB_DIR / "core.py"),
+        "mlp_lab": digest.hexdigest(),
         "demo.py": _sha256_file(LAB_DIR / "demo.py"),
     }
     environment = {
@@ -314,7 +319,7 @@ def save_experiment_log(
         f"记录时间：{record['recorded_at']}",
         f"运行编号：{run_id}",
         f"实验：{experiment}｜模式：{mode}｜设备：{requested_device} -> {resolved_device}",
-        f"core.py SHA-256：{source_hashes['core.py']}",
+        f"MLP 源码 SHA-256：{source_hashes['mlp_lab']}",
         "",
         format_result_table(results),
     ]
@@ -334,7 +339,7 @@ def save_experiment_log(
                     "recorded_at": record["recorded_at"],
                     "run_id": run_id,
                     "experiment": experiment,
-                    "source_core_sha256": source_hashes["core.py"],
+                    "source_core_sha256": source_hashes["mlp_lab"],
                     "config_name": config.name,
                     "dataset": config.dataset,
                     "seed": config.seed,

@@ -1,22 +1,10 @@
-"""Compatibility facade for existing scripts.
+"""Public API for the MLP teaching lab."""
 
-New notebooks should import from the mlp_lab package. The implementation is
-split into small modules so learners only need to read mlp_lab/model.py when a
-task asks them to change the network.
-"""
-
-import torch
-
-from mlp_lab.api import compare, quick_demo, show_datasets
-from mlp_lab.data import DatasetBundle, make_dataset, resolve_device, seed_everything
-from mlp_lab.engine import (
+from .api import compare, quick_demo, show_datasets
+from .data import DatasetBundle, make_dataset, resolve_device, seed_everything
+from .engine import (
     ExperimentConfig,
     TrainingResult,
-    _accuracy,
-    _classification_loss,
-    _clone_state,
-    _make_optimizer,
-    _synchronize,
     base_config,
     comparison_configs,
     mode_defaults,
@@ -24,11 +12,8 @@ from mlp_lab.engine import (
     train_experiment,
     validate_config,
 )
-from mlp_lab.model import MLP, _activation
-from mlp_lab.plots import (
-    POINT_COLORS,
-    REGION_COLORS,
-    configure_chinese_font,
+from .model import MLP
+from .plots import (
     format_result_table,
     plot_comparison,
     plot_dataset_gallery,
@@ -42,13 +27,10 @@ __all__ = [
     "DatasetBundle",
     "ExperimentConfig",
     "MLP",
-    "POINT_COLORS",
-    "REGION_COLORS",
     "TrainingResult",
     "base_config",
     "compare",
     "comparison_configs",
-    "configure_chinese_font",
     "format_result_table",
     "make_dataset",
     "mode_defaults",
