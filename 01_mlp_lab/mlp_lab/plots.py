@@ -1,9 +1,12 @@
 """Matplotlib figures used by notebooks and command-line examples."""
 
 
+from functools import lru_cache
 from pathlib import Path
+import warnings
 
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
 from matplotlib.colors import ListedColormap
 import numpy as np
 import torch
@@ -13,11 +16,51 @@ from .engine import TrainingResult, _clone_state
 
 POINT_COLORS = ["#2563EB", "#DC2626", "#16A34A"]
 REGION_COLORS = ListedColormap(["#BFDBFE", "#FECACA", "#BBF7D0"])
+BUNDLED_CJK_FONT = (
+    Path(__file__).resolve().parents[1]
+    / "assets"
+    / "fonts"
+    / "NotoSansCJKsc-Regular.otf"
+)
+SYSTEM_CJK_FONTS = (
+    "Microsoft YaHei",
+    "SimHei",
+    "Noto Sans CJK SC",
+    "Noto Sans SC",
+    "WenQuanYi Zen Hei",
+    "Arial Unicode MS",
+)
 
 
-def configure_chinese_font() -> None:
-    plt.rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei', 'Noto Sans CJK SC', 'DejaVu Sans']
-    plt.rcParams['axes.unicode_minus'] = False
+@lru_cache(maxsize=1)
+def _preferred_chinese_font() -> str:
+    """注册项目字体，缺失时再查找操作系统已有的中文字体。"""
+
+    if BUNDLED_CJK_FONT.is_file():
+        font_manager.fontManager.addfont(str(BUNDLED_CJK_FONT))
+        return font_manager.FontProperties(fname=BUNDLED_CJK_FONT).get_name()
+
+    available = {font.name for font in font_manager.fontManager.ttflist}
+    for candidate in SYSTEM_CJK_FONTS:
+        if candidate in available:
+            return candidate
+
+    warnings.warn(
+        "未找到项目自带或系统中文字体，Matplotlib 中文可能显示为方框。请重新拉取完整项目。",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+    return "DejaVu Sans"
+
+
+def configure_chinese_font() -> str:
+    """为 Windows 与 Linux 统一配置可显示中文的 Matplotlib 字体。"""
+
+    selected = _preferred_chinese_font()
+    plt.rcParams["font.family"] = "sans-serif"
+    plt.rcParams["font.sans-serif"] = [selected, "DejaVu Sans"]
+    plt.rcParams["axes.unicode_minus"] = False
+    return selected
 
 
 def _mesh(data: DatasetBundle, resolution: int=180) -> tuple[np.ndarray, np.ndarray, torch.Tensor]:

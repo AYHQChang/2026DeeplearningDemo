@@ -15,9 +15,11 @@
 """
 
 from dataclasses import replace
+from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
+import warnings
 
 import matplotlib
 
@@ -28,6 +30,7 @@ import numpy as np
 from core import (
     base_config,
     comparison_configs,
+    configure_chinese_font,
     make_dataset,
     plot_comparison,
     plot_training_story,
@@ -62,6 +65,19 @@ def main() -> None:
     assert data.x_test_raw.shape == data.x_test.shape
     assert data.x_train.shape[1] == 2
     assert data.n_classes == 2
+
+    font_name = configure_chinese_font()
+    assert font_name == "Noto Sans CJK SC"
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        font_figure, font_axis = plt.subplots(figsize=(4, 2))
+        font_axis.set_title("中文字体测试：训练与决策边界")
+        font_axis.set_xlabel("标准化特征")
+        font_buffer = BytesIO()
+        font_figure.savefig(font_buffer, format="png")
+        plt.close(font_figure)
+    assert font_buffer.tell() > 0
+    assert not any("Glyph" in str(item.message) for item in caught)
 
     config = replace(
         base_config(dataset="moons", mode="fast", seed=7, device="cpu"),
