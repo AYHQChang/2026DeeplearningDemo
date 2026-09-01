@@ -1,195 +1,144 @@
-# 环境安装与 Conda 常用命令
+# Linux 与 Conda 常用命令
 
-这份说明用于从零建立课程环境，并提供日常最常用的 Conda 命令。项目正式运行时完全离线；只有首次安装或更新环境需要联网。
+本文用于课程 Linux 服务器的日常操作。所有文件操作都应限定在自己的 `$HOME` 目录内，不修改系统软件、服务器驱动或他人文件。本文不提供服务器关机、重启或管理员操作命令。
 
-## 1. 准备 Conda
+## 1. 认识当前账号和位置
 
-电脑上安装 Anaconda 或 Miniconda，二者任选其一。安装完成后，打开 **Anaconda Prompt**，确认 Conda 可用：
+| 目的 | 命令 | 含义 |
+|---|---|---|
+| 查看当前用户名 | `whoami` | 确认当前登录的是自己的账号 |
+| 查看当前目录 | `pwd` | 输出当前工作目录的完整路径 |
+| 查看主目录 | `echo "$HOME"` | `$HOME` 代表当前账号自己的主目录 |
+| 查看服务器主机名 | `hostname` | 确认当前连接的服务器 |
 
-```powershell
-conda --version
+终端提示符中的 `$` 不是命令的一部分，复制命令时不要把提示符一起复制。
+
+## 2. 查看文件和目录
+
+| 目的 | 命令 | 含义 |
+|---|---|---|
+| 列出当前目录 | `ls` | 显示非隐藏文件和子目录 |
+| 查看详细列表 | `ls -lh` | 显示权限、大小和修改时间 |
+| 包括隐藏文件 | `ls -lah` | 隐藏文件的名称以 `.` 开头 |
+| 查看文本全文 | `cat README.md` | 适合内容较短的文件 |
+| 分页查看文本 | `less README.md` | 方向键翻页，按 `q` 退出 |
+| 查看前 20 行 | `head -n 20 README.md` | 快速查看文件开头 |
+| 查看后 20 行 | `tail -n 20 README.md` | 快速查看文件末尾 |
+
+Linux 的文件名区分大小写。`README.md` 和 `readme.md` 会被视为两个不同文件。
+
+## 3. 切换目录
+
+| 目的 | 命令 | 含义 |
+|---|---|---|
+| 返回主目录 | `cd "$HOME"` | 与 `cd ~` 作用相同 |
+| 进入课程项目 | `cd "$HOME/2026DeeplearningDemo"` | 路径不同时换成实际项目目录 |
+| 进入子目录 | `cd 01_mlp_lab` | 相对于当前目录切换 |
+| 返回上一级 | `cd ..` | `..` 代表父目录 |
+| 返回上次所在目录 | `cd -` | 在两个目录之间切换 |
+
+路径中有空格时应使用引号，例如 `cd "$HOME/my project"`。
+
+## 4. 安全的文件操作
+
+以下命令仅作为格式示例，执行时将示例文件名换成实际文件名。
+
+| 目的 | 命令 | 安全说明 |
+|---|---|---|
+| 创建目录 | `mkdir -p "$HOME/practice"` | `-p` 会同时创建缺失的上级目录 |
+| 复制文件 | `cp -i source.py backup.py` | `-i` 在覆盖现有文件前询问 |
+| 移动或重命名 | `mv -i old_name.py new_name.py` | `-i` 在覆盖前询问 |
+| 删除一个文件 | `rm -i unwanted_file.py` | `-i` 要求再次确认；删除后通常不能从回收站恢复 |
+
+执行复制、移动或删除前，先用 `pwd` 确认当前目录，再用 `ls -lah` 确认目标。不要对不确定的路径使用递归强制删除参数。
+
+## 5. 查看磁盘、GPU 和自己的进程
+
+| 目的 | 命令 | 含义 |
+|---|---|---|
+| 查看主目录总占用 | `du -sh "$HOME"` | 结果可能需要等待一会儿 |
+| 查看所在磁盘空间 | `df -h "$HOME"` | 查看已用和可用容量 |
+| 查看 GPU 使用情况 | `nvidia-smi` | 显示 GPU、显存和相关进程 |
+| 查看当前账号的进程 | `ps -u "$USER" -o pid,etime,cmd` | 仅列出当前用户的进程 |
+
+前台命令运行时，按 `Ctrl+C` 可请求停止当前命令。
+
+## 6. Conda 常用命令
+
+### 6.1 加载和切换环境
+
+| 目的 | 命令 |
+|---|---|
+| 终端找不到 Conda 时手动加载 | `source "$HOME/miniconda3/etc/profile.d/conda.sh"` |
+| 查看 Conda 版本 | `conda --version` |
+| 查看全部环境 | `conda env list` |
+| 进入课程环境 | `conda activate dl2026` |
+| 退出当前环境 | `conda deactivate` |
+| 查看当前 Python 位置 | `which python` |
+| 查看当前 Python 版本 | `python --version` |
+
+激活成功后，终端提示符前通常出现 `(dl2026)`。
+
+### 6.2 查看和安装依赖
+
+| 目的 | 命令 |
+|---|---|
+| 查看 Conda 环境中的包 | `conda list` |
+| 查看 pip 包 | `python -m pip list` |
+| 查看 PyTorch 详细信息 | `python -m pip show torch` |
+| 安装项目通用依赖 | `python -m pip install --only-binary=:all: -r requirements.txt` |
+| 检查已安装依赖是否冲突 | `python -m pip check` |
+
+PyTorch 的 CUDA 版本按服务器安装笔记单独安装，不写入 `requirements.txt`，避免通用依赖安装时覆盖已经正常工作的 PyTorch。
+
+### 6.3 注册 VS Code Notebook 内核
+
+以下命令只需执行一次：
+
+```bash
+# 将当前 dl2026 环境注册为可选的 Notebook 内核。
+python -m ipykernel install --user --name dl2026 --display-name "Python (dl2026)"
 ```
 
-如果能够显示版本号，就可以继续创建独立环境。不要把课程依赖直接安装到 `base` 环境，独立环境更容易复现，也不会影响其他项目。
+## 7. 每次登录后的最短流程
 
-## 2. 创建并进入 Ayitedu 环境
+```bash
+# 进入课程环境。
+conda activate dl2026
 
-```powershell
-conda create -n Ayitedu python=3.11 -y
-conda activate Ayitedu
-python --version
-```
+# 进入项目根目录。
+cd "$HOME/2026DeeplearningDemo"
 
-正常情况下，最后一条命令应显示 Python 3.11.x。以后每次运行 Demo 前，只需执行：
+# 确认当前位置和 Python 来源。
+pwd
+which python
 
-```powershell
-conda activate Ayitedu
-```
-
-## 3. 安装 PyTorch：CPU 与 GPU 二选一
-
-CPU 和 GPU 使用同一份项目代码，但 PyTorch 安装包不同。不要同时执行下面两条安装命令。
-
-### 3.1 没有 NVIDIA GPU：安装 CPU 版本
-
-```powershell
-python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-```
-
-### 3.2 配有 NVIDIA GPU：安装 CUDA 版本
-
-本课程当前开发环境使用 CUDA 12.8 对应的 PyTorch 安装包：
-
-```powershell
-python -m pip install torch --index-url https://download.pytorch.org/whl/cu128
-```
-
-不同显卡和不同时间可用的 CUDA 安装命令可能变化。需要在其他电脑安装 GPU 版本时，以 PyTorch 官方安装选择器给出的命令为准：<https://pytorch.org/get-started/locally/>。
-
-安装完成后检查 PyTorch：
-
-```powershell
-python -c "import torch; print('PyTorch:', torch.__version__); print('CUDA available:', torch.cuda.is_available())"
-```
-
-- CPU 版本显示 `CUDA available: False` 是正常现象；
-- GPU 版本显示 `True` 时，可以使用 CUDA；
-- 即使显示 `False`，三个 Demo 仍然可以强制使用 CPU 完整运行。
-
-## 4. 安装其余依赖
-
-先进入项目根目录，再安装两种设备共用的依赖：
-
-```powershell
-conda activate Ayitedu
-cd D:\Code_for_all\2026DeeplearningDemo
-python -m pip install -r requirements.txt
-```
-
-`requirements.txt` 没有包含 `torch`，目的是避免覆盖第 3 步已经选择好的 CPU 或 CUDA 版本。
-
-建议始终使用 `python -m pip`，这样可以明确把依赖安装到当前激活环境对应的 Python 中。
-
-## 5. 注册 Notebook 内核
-
-注册一次后，VS Code 和 Jupyter 的内核列表中会出现 `Python (Ayitedu)`：
-
-```powershell
-python -m ipykernel install --user --name Ayitedu --display-name "Python (Ayitedu)"
-```
-
-打开 `01_mlp_lab/mlp_lab.ipynb` 后，选择 `Python (Ayitedu)`，再执行“Restart Kernel and Run All Cells”。
-
-## 6. 验证课程环境
-
-```powershell
-conda activate Ayitedu
-cd D:\Code_for_all\2026DeeplearningDemo
+# 检查课程环境。
 python check_environment.py
 ```
 
-检查结果会列出 Python、PyTorch、NumPy、Matplotlib、scikit-learn、Jupyter 等版本，并显示 CUDA 是否可用。最后出现下面这行即表示核心环境通过：
+运行 MLP 快速测试：
 
-```text
-环境自检通过，可以离线运行课堂 Demo。
+```bash
+# 从项目根目录运行最短测试。
+python 01_mlp_lab/test_mlp_smoke.py
 ```
 
-再运行一个最短示例：
+使用指定 GPU 时，将编号换成课堂分配的实际编号：
 
-```powershell
-cd 01_mlp_lab
-python demo.py --device cpu --mode fast --experiment baseline
+```bash
+# 例如仅让当前程序看到编号 0 的 GPU。
+CUDA_VISIBLE_DEVICES=0 python 01_mlp_lab/demo.py --device cuda --mode fast --experiment baseline
 ```
 
-## 7. CPU、GPU 与自动选择
+## 8. 查看命令帮助
 
-同一份脚本通过 `--device` 切换设备：
+```bash
+# 查看某个命令的简要帮助。
+ls --help
 
-```powershell
-# 始终使用 CPU
-python demo.py --device cpu --experiment baseline
-
-# 有 CUDA 时用 GPU，否则自动使用 CPU
-python demo.py --device auto --experiment baseline
-
-# 必须使用 CUDA；CUDA 不可用时直接给出中文错误
-python demo.py --device cuda --experiment baseline
+# 查看命令手册；按 q 退出。
+man ls
 ```
 
-Notebook 中修改顶部配置即可：
-
-```python
-DEVICE = "cpu"   # 或 "auto"、"cuda"
-```
-
-## 8. Conda 常用命令速查
-
-### 8.1 查看与切换环境
-
-| 目的 | 命令 |
-|---|---|
-| 查看 Conda 版本 | `conda --version` |
-| 查看全部环境 | `conda env list` |
-| 进入环境 | `conda activate Ayitedu` |
-| 退出当前环境 | `conda deactivate` |
-| 查看当前 Python | `python --version` |
-| 查看当前 Python 位置 | `where python` |
-
-### 8.2 创建、复制与删除环境
-
-| 目的 | 命令 |
-|---|---|
-| 创建 Python 3.11 环境 | `conda create -n Ayitedu python=3.11 -y` |
-| 复制现有环境 | `conda create -n Ayitedu_copy --clone Ayitedu` |
-| 删除指定环境 | `conda remove -n Ayitedu_copy --all` |
-
-删除环境会同时删除其中安装的全部包。执行前先用 `conda env list` 确认名称，并退出准备删除的环境。
-
-### 8.3 查看、安装与更新包
-
-| 目的 | 命令 |
-|---|---|
-| 查看当前环境全部包 | `conda list` |
-| 查找某个包 | `conda list numpy` |
-| 安装 Conda 包 | `conda install numpy` |
-| 安装 requirements | `python -m pip install -r requirements.txt` |
-| 查看 pip 包 | `python -m pip list` |
-| 查看包的详细信息 | `python -m pip show torch` |
-| 更新指定 Conda 包 | `conda update numpy` |
-| 删除指定 Conda 包 | `conda remove numpy` |
-
-同一个包不要反复交替使用 Conda 和 pip 安装。PyTorch 按本说明使用官方 pip 安装命令，其余课程依赖统一由 `requirements.txt` 管理。
-
-### 8.4 导出与恢复环境记录
-
-导出当前环境：
-
-```powershell
-conda env export -n Ayitedu > environment.yml
-```
-
-根据记录创建新环境：
-
-```powershell
-conda env create -f environment.yml
-```
-
-只记录主动安装的主要包，文件通常更简洁：
-
-```powershell
-conda env export -n Ayitedu --from-history > environment-history.yml
-```
-
-## 9. 每次使用前的最短流程
-
-```powershell
-conda activate Ayitedu
-cd D:\Code_for_all\2026DeeplearningDemo\01_mlp_lab
-python demo.py --device auto --mode fast --experiment baseline
-```
-
-使用 Notebook 时，将最后一行替换为：
-
-```powershell
-code mlp_lab.ipynb
-```
+对命令的作用或目标路径不确定时，先查看帮助，不在共享服务器上试运行系统管理命令。

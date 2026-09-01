@@ -1,0 +1,186 @@
+# Linux 服务器 Conda 与 PyTorch 安装指南
+
+> 适用范围：本课程
+>
+> 原则：每人使用分配给自己的账号，不要复制他人的用户名。
+>
+> 本文中的 `$USER` 表示当前登录账号，`$HOME` 表示该账号自己的主目录。
+
+## 1. 服务器与安装方案
+
+SSH 连接信息：
+
+```text
+服务器：172.23.168.7
+端口：22
+用户名：<你自己的账号>
+密码：<你自己的密码>
+```
+
+已实测的服务器配置：
+
+| 项目 | 结果 |
+|---|---|
+| 操作系统 | CentOS Linux 7（64 位 x86_64） |
+| glibc | 2.17 |
+| CPU | 48 个逻辑 CPU |
+| 内存 | 约 377 GB |
+| GPU | 7 块 NVIDIA GeForce RTX 3090，每块约 24 GB |
+| NVIDIA 驱动 | 580.82.09 |
+| `nvidia-smi` 显示的 CUDA | 13.0 |
+| Conda | 未安装 |
+| 系统 Python | 仅 Python 2.7.5，不用于本课程 |
+
+本课程采用以下组合：
+
+```text
+Miniconda py311 24.11.1-0
+Python 3.11
+PyTorch 2.5.1
+CUDA 11.8 版 PyTorch
+Conda 环境名：dl2026
+```
+
+原因：服务器的 CentOS 7 和 glibc 2.17 较旧，不适合盲目安装最新版软件。`nvidia-smi` 中的 CUDA 13.0 表示当前驱动可支持的 CUDA 级别，不是要求 PyTorch 必须安装 CUDA 13.0。新驱动可以运行由较旧 CUDA 构建的程序，因此选用 CUDA 11.8 版 PyTorch。
+
+## 2. 首次安装 Miniconda
+
+> 以下命令只需在每个账号中执行一次。安装在自己的 `$HOME` 中，不需要 `sudo` 或管理员权限。
+
+```bash
+# 进入当前账号自己的主目录。
+cd "$HOME"
+
+# 下载与老服务器兼容的归档版 Miniconda 安装包。
+# -f：HTTP 错误时立即失败；-L：自动跟随网页重定向；-o：指定保存的文件名。
+curl -fL -o Miniconda3-py311_24.11.1-0-Linux-x86_64.sh https://repo.anaconda.com/miniconda/Miniconda3-py311_24.11.1-0-Linux-x86_64.sh
+
+# 校验安装包的 SHA-256；出现 OK 才继续安装。
+echo "807774bae6cd87132094458217ebf713df436f64779faf9bb4c3d4b6615c1e3a  Miniconda3-py311_24.11.1-0-Linux-x86_64.sh" | sha256sum -c -
+
+# 静默安装 Miniconda 到当前账号的 $HOME/miniconda3。
+# -b：批处理模式，不进入交互界面；-p：指定安装路径。
+bash Miniconda3-py311_24.11.1-0-Linux-x86_64.sh -b -p "$HOME/miniconda3"
+
+# 让当前终端立即识别 conda 命令。
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
+
+# 禁止登录后自动进入 base 环境，保持终端提示符简洁。
+conda config --set auto_activate_base false
+
+# 把 conda 初始化代码加入当前账号的 Bash 配置。
+conda init bash
+
+# 重新读取 Bash 配置，无需关闭当前终端。
+source "$HOME/.bashrc"
+```
+
+## 3. 创建课程环境并安装依赖
+
+```bash
+# 创建名为 dl2026 的独立环境，安装 Python 3.11 和 pip。
+# -y：自动确认安装提问。
+conda create -n dl2026 python=3.11 pip -y
+
+# 激活课程环境；后续安装的包都保存在该环境中。
+conda activate dl2026
+
+# 进入位于当前账号主目录下的课程项目。
+cd "$HOME/2026DeeplearningDemo"
+
+# 先安装课程通用依赖。
+# requirements.txt 已固定 NumPy 1.26.4 和 Pillow 12.2.0，避免老系统进入源码编译。
+# --only-binary=:all: 禁止现场编译；如果没有兼容 wheel，pip 会立即报错。
+python -m pip install --only-binary=:all: -r requirements.txt
+
+# 安装官方 CUDA 11.8 版 PyTorch 2.5.1。
+# 当前项目未使用 torchvision 和 torchaudio，因此不额外安装。
+python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu118
+```
+
+已出现过的两次失败与修复：
+
+| 失败现象 | 原因 | 修复 |
+|---|---|---|
+| NumPy 2.4.6 开始源码编译，随后提示找不到 `meson-python` | PyTorch 专用仓库没有适用 glibc 2.17 的新版 NumPy wheel | 在 `requirements.txt` 固定 `numpy==1.26.4`，并在 PyTorch 之前安装 |
+| Pillow 12.3.0 开始源码编译，随后提示找不到 `pybind11` | Pillow 12.3.0 的当前 Linux wheel 不支持 glibc 2.17 | 在 `requirements.txt` 固定 `pillow==12.2.0`，并在 PyTorch 之前安装 |
+
+正常顺序下，一条 `python -m pip install --only-binary=:all: -r requirements.txt` 会同时完成上述两项修复，不需要再单独执行修复命令。
+
+说明：PyTorch 的 `cu118` wheel 已包含运行所需的 CUDA 用户态组件，无需自行安装系统级 CUDA Toolkit，也不应修改服务器的 NVIDIA 驱动。已经安装了 `torchvision` 和 `torchaudio` 的账号不需要卸载它们。
+
+## 4. 检查安装结果
+
+```bash
+# 显示 PyTorch 版本、PyTorch 内置的 CUDA 版本、CUDA 是否可用以及可见 GPU 数量。
+python -c "import torch; print('PyTorch:', torch.__version__); print('CUDA runtime:', torch.version.cuda); print('CUDA available:', torch.cuda.is_available()); print('GPU count:', torch.cuda.device_count())"
+
+# 运行项目自带的环境检查脚本。
+python check_environment.py
+
+# 运行 MLP 章节的快速测试，检查基本代码能否执行。
+python 01_mlp_lab/test_mlp_smoke.py
+```
+
+正常情况下，第一条命令应至少显示：
+
+```text
+PyTorch: 2.5.1+cu118
+CUDA runtime: 11.8
+CUDA available: True
+GPU count: 7
+```
+
+`GPU count` 可能因课程的 GPU 分配方式而少于 7，只要 `CUDA available` 为 `True` 且能正常识别分配的 GPU，即可继续。
+
+## 5. 以后每次登录后的命令
+
+```bash
+# 激活已安装好的课程环境。
+conda activate dl2026
+
+# 进入课程项目目录。
+cd "$HOME/2026DeeplearningDemo"
+```
+
+如果终端提示 `conda: command not found`，执行：
+
+```bash
+# 手动加载当前账号的 Conda，然后再激活课程环境。
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
+conda activate dl2026
+```
+
+## 6. 共享 GPU 注意事项
+
+这是多用户共享服务器。运行训练前，先查看 GPU 使用情况：
+
+```bash
+# 查看每块 GPU 的显存占用、利用率和当前进程。
+nvidia-smi
+```
+
+根据教师分配的 GPU 编号运行程序。例如，使用编号 0 的 GPU：
+
+```bash
+# 仅让当前程序看到编号 0 的 GPU；实际编号应按课堂分配替换。
+CUDA_VISIBLE_DEVICES=0 python 你的程序.py
+```
+
+不要在未确认的情况下长时间占用多块 GPU。
+
+## 7. 安装失败时保留的信息
+
+如果某条命令报错，先停止后续步骤，保留以下内容：
+
+- 报错命令的完整输入。
+- 从命令开始到终端提示符重新出现之间的完整输出。
+- 当前是否已激活 `dl2026` 环境。
+
+不要在报错后反复执行不明来源的 `sudo`、卸载命令或驱动安装命令。
+
+## 8. 官方参考
+
+- [Miniconda 官方归档与 SHA-256](https://repo.anaconda.com/miniconda/)
+- [PyTorch 官方历史版本安装命令](https://docs.pytorch.org/get-started/previous-versions/)
+- [NVIDIA CUDA 驱动兼容性说明](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html)

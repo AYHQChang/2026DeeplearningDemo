@@ -3,9 +3,8 @@
 脚本不联网、不安装或升级任何包，只完成以下检查：
 
 1. 打印当前 Python 版本，确认 VS Code/Jupyter 选中了预期 Conda 环境；
-2. 逐个导入训练、绘图与 Notebook 执行真正需要的 Python 模块；
-3. 确认 Jupyter 与 nbconvert 已安装，并输出每个发行包的实际版本；
-4. 检查 CUDA 是否可用，并在可用时打印 CUDA runtime 与 GPU 名称。
+2. 逐个导入训练、绘图与 VS Code Notebook 真正需要的 Python 模块；
+3. 检查 CUDA 是否可用，并在可用时打印 CUDA runtime 与 GPU 名称。
 
 只要有一个必需包缺失，脚本就以非零状态退出并列出缺失名称；全部通过后才输出
 “环境自检通过”。该文件不检查网络，因为正式课堂运行设计为完全离线。
@@ -13,7 +12,7 @@
 
 from __future__ import annotations
 
-from importlib import metadata, util
+from importlib import metadata
 import sys
 
 
@@ -22,15 +21,7 @@ IMPORT_CHECKS = {
     "numpy": "numpy",
     "matplotlib": "matplotlib",
     "scikit-learn": "sklearn",
-    "nbformat": "nbformat",
     "ipykernel": "ipykernel",
-    "nbclient": "nbclient",
-}
-
-# 这两个发行包只需确认已安装。环境自检不启动 Jupyter 服务，也不联网。
-INSTALL_CHECKS = {
-    "jupyter": "jupyter_core",
-    "nbconvert": "nbconvert",
 }
 
 
@@ -51,15 +42,6 @@ def main() -> None:
             __import__(import_name)
             print(f"[OK] {package} {metadata.version(package)}")
         except (ImportError, metadata.PackageNotFoundError):
-            missing.append(package)
-            print(f"[缺失] {package}")
-
-    for package, import_name in INSTALL_CHECKS.items():
-        try:
-            if util.find_spec(import_name) is None:
-                raise ModuleNotFoundError(import_name)
-            print(f"[OK] {package} {metadata.version(package)}")
-        except (ImportError, metadata.PackageNotFoundError, ModuleNotFoundError):
             missing.append(package)
             print(f"[缺失] {package}")
 

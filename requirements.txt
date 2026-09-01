@@ -1,6 +1,8 @@
-numpy>=1.26
-matplotlib>=3.8
-scikit-learn>=1.4
-jupyter>=1.0
-nbformat>=5.9
-nbconvert>=7.16
+# CentOS 7 / glibc 2.17 仍有 Linux wheel 的已核对版本。
+numpy==1.26.4
+pillow==12.2.0
+matplotlib==3.8.4
+scikit-learn==1.4.2
+
+# VS Code 运行 .ipynb 所需的 Python 内核；不安装整套 Jupyter 元包。
+ipykernel==6.29.5
