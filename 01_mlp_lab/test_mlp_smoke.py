@@ -7,7 +7,7 @@
 3. loss 数值有限、accuracy 范围合法、首末快照存在；
 4. 阶段故事图和组件对比图能够在非交互 ``Agg`` 后端完成布局；
 5. 损失函数对比确实生成 Cross-Entropy 与合法 MSE 两种配置；
-6. 数据说明图、任务流程图和三种实验日志能够完成最小写入。
+6. 数据说明图、任务流程图、Tensor 教学图和三种实验日志能够完成最小写入；
 7. 自定义命令行配置的显示名称与实际结构和组件一致。
 
 测试刻意使用小数据和少量 epoch，只验证代码链路，不把某次随机准确率当成固定
@@ -40,6 +40,14 @@ from core import (
 )
 from data_and_task import plot_data_explanation, plot_task_flow
 from mlp_lab import quick_demo
+from tensor_visuals import (
+    plot_image_tensor_shapes,
+    plot_mlp_shape_flow,
+    plot_moons_tensor_map,
+    plot_sample_to_batch,
+    plot_tensor_dimensions,
+    plot_tensor_indexing,
+)
 from demo import build_parser, make_base_from_args, save_experiment_log
 
 
@@ -110,10 +118,25 @@ def main() -> None:
     comparison = plot_comparison([result], "烟雾测试")
     data_figure = plot_data_explanation([data])
     task_figure = plot_task_flow(data.dataset_name, data.n_classes)
+    digit = torch.zeros(28, 28)
+    digit[4:7, 5:23] = 1.0
+    digit[7:24, 17:20] = 1.0
+    tensor_figures = [
+        plot_tensor_dimensions(),
+        plot_tensor_indexing(torch.tensor([[10, 11, 12], [20, 21, 22]])),
+        plot_sample_to_batch(
+            torch.tensor([0.8, -1.2]),
+            torch.tensor([[0.8, -1.2], [-0.5, 0.7], [1.4, 0.3]]),
+        ),
+        plot_image_tensor_shapes(digit),
+        plot_moons_tensor_map(data),
+        plot_mlp_shape_flow(batch_size=8, hidden_size=16, n_classes=2),
+    ]
     assert len(story.axes) >= 8
     assert len(comparison.axes) >= 4
     assert len(data_figure.axes) == 4
     assert len(task_figure.axes) == 1
+    assert all(figure.axes for figure in tensor_figures)
     plt.close("all")
 
     with TemporaryDirectory() as temporary_dir:
