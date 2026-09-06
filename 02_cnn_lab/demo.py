@@ -18,7 +18,7 @@ def _channels(text: str) -> tuple[int, int]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="CNN 手写数字课堂实验室")
     parser.add_argument("--experiment", choices=("gallery", "mechanism", "baseline", "pooling"), default="baseline")
-    parser.add_argument("--device", default="cpu", help="cpu、auto、cuda 或课堂分配的 cuda:编号")
+    parser.add_argument("--device", default="cpu", help="cpu、cuda 或课堂分配的 cuda:编号")
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--channels", type=_channels, default=(8, 16))
     return parser

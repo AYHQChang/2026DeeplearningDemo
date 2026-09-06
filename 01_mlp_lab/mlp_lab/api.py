@@ -1,6 +1,7 @@
 """Small, visual-first API for the notebooks."""
 
 from dataclasses import replace
+import math
 
 import matplotlib.pyplot as plt
 
@@ -16,6 +17,7 @@ from .plots import (
 
 
 def _show() -> None:
+    """交互后端显示图片；测试使用的 Agg 后端不弹出窗口。"""
     if plt.get_backend().lower() != "agg":
         plt.show()
 
@@ -28,6 +30,51 @@ COMPARISON_TITLES = {
     "dropout": "Dropout 对比：正则化与欠拟合",
     "width": "隐藏层宽度对比：容量与泛化",
 }
+
+
+def challenge_report(
+    result: TrainingResult,
+    accuracy_target: float = 0.90,
+    parameter_budget: int = 500,
+    update_budget: int = 400,
+) -> dict[str, float | int | bool]:
+    """按准确率、参数量和更新次数给一次闯关实验计星。"""
+    if not 0.0 <= accuracy_target <= 1.0:
+        raise ValueError("accuracy_target 必须位于 0 到 1 之间。")
+    if parameter_budget <= 0 or update_budget <= 0:
+        raise ValueError("parameter_budget 和 update_budget 必须大于 0。")
+
+    update_steps = (
+        math.ceil(len(result.data.x_train) / result.config.batch_size)
+        * result.config.epochs
+    )
+    checks = {
+        "accuracy_star": result.final_test_accuracy >= accuracy_target,
+        "parameter_star": result.parameter_count <= parameter_budget,
+        "update_star": update_steps <= update_budget,
+    }
+    stars = sum(checks.values())
+    print("\n闯关计分")
+    print(
+        f"{'⭐' if checks['accuracy_star'] else '☆'} 准确率："
+        f"{result.final_test_accuracy:.1%}（目标 ≥ {accuracy_target:.1%}）"
+    )
+    print(
+        f"{'⭐' if checks['parameter_star'] else '☆'} 参数量："
+        f"{result.parameter_count}（预算 ≤ {parameter_budget}）"
+    )
+    print(
+        f"{'⭐' if checks['update_star'] else '☆'} 更新次数："
+        f"{update_steps}（预算 ≤ {update_budget}）"
+    )
+    print(f"总计：{stars}/3 星。分数不使用运行时间，避免共享服务器负载影响公平性。")
+    return {
+        **checks,
+        "stars": stars,
+        "accuracy": result.final_test_accuracy,
+        "parameters": result.parameter_count,
+        "update_steps": update_steps,
+    }
 
 
 def show_datasets(seed: int = 42, n_samples: int = 450):

@@ -42,10 +42,20 @@
 | 3 | [03_训练第一个MLP.ipynb](./01_mlp_lab/03_训练第一个MLP.ipynb) | 决策边界如何随 Epoch 逐渐形成 |
 | 4 | [04_组件对比实验.ipynb](./01_mlp_lab/04_组件对比实验.ipynb) | 激活函数和优化器的单变量对比 |
 | 5 | [05_自主修改练习.ipynb](./01_mlp_lab/05_自主修改练习.ipynb) | 修改一个参数后，与基线结果进行比较 |
+| 6 | [06_MLP闯关项目.ipynb](./01_mlp_lab/06_MLP闯关项目.ipynb) | 四小时综合闯关、代码修改与证据报告 |
 
-六份 Notebook 都保存了一次成功运行的图形输出。即使暂时没有配置好运行环境，也可以先在 GitHub 上打开它们预览实验结果。👀
+前六份 Notebook 保存了成功运行的图形输出；第 7 份是留给学生填写的综合项目。
+即使暂时没有配置好运行环境，也可以先在 GitHub 上打开前六份预览实验结果。👀
 
 更详细的 MLP 使用说明见 [01_mlp_lab/README.md](./01_mlp_lab/README.md)。
+
+### `1.1`：用 MLP 预测房价 🏠
+
+完成 MLP 基础后，打开 [11_房价预测.ipynb](./01_mlp_lab/11_房价预测.ipynb)，把“判断类别”换成“预测一个连续数值”。
+
+先看模拟房源表和散点图，再看模型怎样学会预测价格。你可以自己输入面积、房间数、房龄和距离，也可以在参数区切换 MSE / MAE / Huber 损失、Adam / SGD / RMSprop 优化器，修改学习率、Batch、Epoch 和隐藏层宽度。
+
+本页还会解释训练集、验证集、测试集各自的任务，用万元尺度的 MAE 比较实验，并与“始终猜训练均价”的简单基线比较。数据完全离线生成，明确标注为模拟数据；不用于真实房产估价。
 
 ### `02_cnn_lab`：CNN 与小型图像分类
 
@@ -59,8 +69,24 @@
 | 3 | [03_训练第一个CNN.ipynb](./02_cnn_lab/03_训练第一个CNN.ipynb) | Loss、Accuracy、混淆矩阵、错误样本与特征图 |
 | 4 | [04_CNN组件对比实验.ipynb](./02_cnn_lab/04_CNN组件对比实验.ipynb) | 不同池化方式的单变量对比 |
 | 5 | [05_自主修改练习.ipynb](./02_cnn_lab/05_自主修改练习.ipynb) | 修改卷积通道数，并与基线结果比较 |
+| 6 | [06_CNN识别侦探项目.ipynb](./02_cnn_lab/06_CNN识别侦探项目.ipynb) | 四小时综合取证、代码修改与预算挑战 |
 
 更详细的 CNN 使用说明见 [02_cnn_lab/README.md](./02_cnn_lab/README.md)。
+
+### `03_rnn_lab`：RNN、LSTM、GRU 与长期记忆
+
+这个实验室把序列学习变成一个直观的“记秘密”任务：序列开头给出红、绿或蓝，经过一段与答案无关的噪声后，模型要在末尾回答最初的颜色。数据由本地代码生成，无需下载。
+
+| 顺序 | Notebook | 你会看到什么 |
+|---:|---|---|
+| 0 | [00_一键体验.ipynb](./03_rnn_lab/00_一键体验.ipynb) | 秘密时间线、训练曲线、混淆矩阵和预测概率 |
+| 1 | [01_认识序列与三维张量.ipynb](./03_rnn_lab/01_认识序列与三维张量.ipynb) | `[Batch, Time, Feature]` 与实际数据怎样对应 |
+| 2 | [02_隐藏状态与循环记忆.ipynb](./03_rnn_lab/02_隐藏状态与循环记忆.ipynb) | 循环展开图、隐藏状态热力图和输入梯度 |
+| 3 | [03_训练第一个RNN.ipynb](./03_rnn_lab/03_训练第一个RNN.ipynb) | Vanilla RNN 的完整训练、诊断和预测案例 |
+| 4 | [04_RNN_LSTM_GRU对比.ipynb](./03_rnn_lab/04_RNN_LSTM_GRU对比.ipynb) | 不同序列长度下的准确率、参数量和训练时间 |
+| 5 | [05_自主修改练习.ipynb](./03_rnn_lab/05_自主修改练习.ipynb) | 保留基线、只改一项并记录证据 |
+
+核心实验默认使用 CPU。更详细的运行方法见 [03_rnn_lab/README.md](./03_rnn_lab/README.md)。
 
 ## 🔍 运行一次实验，可以观察哪些信息？
 
@@ -106,7 +132,9 @@ cd 2026DeeplearningDemo
 conda activate dl2026
 python check_environment.py
 python 01_mlp_lab/test_mlp_smoke.py
+python 01_mlp_lab/test_house_price_smoke.py
 python 02_cnn_lab/test_cnn_smoke.py
+python 03_rnn_lab/test_rnn_smoke.py
 ```
 
 看到以下内容，说明基本环境和 MLP 实验可以运行：
@@ -114,7 +142,9 @@ python 02_cnn_lab/test_cnn_smoke.py
 ```text
 环境自检通过，可以离线运行课堂 Demo。
 MLP smoke test passed.
+House price smoke test passed.
 CNN smoke test passed.
+RNN smoke test passed.
 ```
 
 ### 第三步：打开第一份 Notebook
@@ -131,10 +161,12 @@ CNN smoke test passed.
 | 实验室 | 状态 | 主要内容 | 计划展示 |
 |---|---|---|---|
 | `01_mlp_lab` | ✅ 已完成 | MLP、激活函数、优化器和二维分类 | 决策边界、Loss、Accuracy、梯度 |
+| `1.1` MLP 房价预测 | ✅ 已完成 | 多特征回归、数据划分、参数比较 | 房源表、预测阶段、误差图、自定义房源预测 |
 | `02_cnn_lab` | ✅ 已完成 | 卷积、池化、特征提取和图像分类 | 卷积核、特征图、混淆矩阵、错误样本 |
-| `03_rnn_lab` | 🧭 待建设 | RNN、LSTM、GRU 和长期依赖 | 序列预测、梯度、长度对比、训练时间 |
+| `03_rnn_lab` | ✅ 已完成 | RNN、LSTM、GRU 和长期依赖 | 秘密时间线、隐藏状态、梯度、长度对比 |
 
-后续实验室会继续采用相同的六步路线：先快速看到结果，再理解数据、训练规则和训练过程，最后完成组件对比与自主修改。
+后续实验室会继续采用“基础六步 + 综合项目”的路线：先快速看到结果，再理解数据、
+训练规则和训练过程，随后完成组件对比、自主修改与证据报告。
 
 ## 📚 第一次使用服务器？按这个顺序阅读
 
@@ -148,9 +180,10 @@ CNN smoke test passed.
 ## 📁 为什么项目里有两份 README？
 
 - 根目录的 [README.md](./README.md)：GitHub 仓库首页，介绍整个课程项目、学习路线和建设计划；
-- [01_mlp_lab/README.md](./01_mlp_lab/README.md)：MLP 子项目说明，介绍六份 Notebook、代码结构和具体运行方法。
+- [01_mlp_lab/README.md](./01_mlp_lab/README.md)：MLP 子项目说明，介绍七份核心 Notebook、代码结构和具体运行方法；
+- [02_cnn_lab/README.md](./02_cnn_lab/README.md) 和 [03_rnn_lab/README.md](./03_rnn_lab/README.md)：分别提供 CNN 与 RNN 实验室的具体入口。
 
-每个已完成的实验室都有自己的 README；以后新增 `03_rnn_lab` 时也会沿用这一结构。根目录 README 负责“带你找到方向”，子目录 README 负责“带你完成这个实验”。
+每个已完成的实验室都有自己的 README。根目录 README 负责“带你找到方向”，子目录 README 负责“带你完成这个实验”。
 
 ## 💡 一个小建议
 

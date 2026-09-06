@@ -1,12 +1,13 @@
 """Public API for the MLP teaching lab."""
 
-from .api import compare, quick_demo, show_datasets
+from .api import challenge_report, compare, quick_demo, show_datasets
 from .data import DatasetBundle, make_dataset, resolve_device, seed_everything
 from .engine import (
     ExperimentConfig,
     TrainingResult,
     base_config,
     comparison_configs,
+    estimate_update_steps,
     mode_defaults,
     run_comparison,
     train_experiment,
@@ -29,8 +30,10 @@ __all__ = [
     "MLP",
     "TrainingResult",
     "base_config",
+    "challenge_report",
     "compare",
     "comparison_configs",
+    "estimate_update_steps",
     "format_result_table",
     "make_dataset",
     "mode_defaults",

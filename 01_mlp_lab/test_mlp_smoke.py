@@ -39,7 +39,7 @@ from core import (
     train_experiment,
 )
 from data_and_task import plot_data_explanation, plot_task_flow
-from mlp_lab import quick_demo
+from mlp_lab import challenge_report, quick_demo, validate_config
 from tensor_visuals import (
     plot_image_tensor_shapes,
     plot_mlp_shape_flow,
@@ -113,6 +113,24 @@ def main() -> None:
     assert all(np.isfinite(result.train_loss))
     assert 0.0 <= result.final_test_accuracy <= 1.0
     assert {0, config.epochs}.issubset(result.snapshots)
+    report = challenge_report(
+        result, accuracy_target=0.0, parameter_budget=500, update_budget=100
+    )
+    assert report["stars"] == 3
+    assert report["update_steps"] == 12
+
+    for unsafe_config, expected_message in (
+        (replace(config, device="auto"), "不允许 device=\"auto\""),
+        (replace(config, epochs=201), "epochs≤200"),
+        (replace(config, hidden_sizes=(129,)), "每层不超过 128"),
+        (replace(config, epochs=200, n_samples=1500, batch_size=1), "预计更新"),
+    ):
+        try:
+            validate_config(unsafe_config)
+        except ValueError as error:
+            assert expected_message in str(error)
+        else:
+            raise AssertionError("超出共享服务器预算的配置应该被拒绝。")
 
     story = plot_training_story(result)
     comparison = plot_comparison([result], "烟雾测试")

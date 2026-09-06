@@ -16,6 +16,7 @@ from mlp_lab.plots import POINT_COLORS, configure_chinese_font
 
 
 def _finish(axis: plt.Axes) -> None:
+    """隐藏刻度和边框，让概念示意图保持简洁。"""
     axis.set_xticks([])
     axis.set_yticks([])
     axis.set_frame_on(False)
@@ -26,6 +27,7 @@ def _draw_number_grid(
     values: np.ndarray,
     selected: set[tuple[int, int]] | None = None,
 ) -> None:
+    """绘制带数字的二维格子，并用黄色突出 selected 中的位置。"""
     rows, columns = values.shape
     selected = selected or set()
     axis.set_xlim(-0.5, columns - 0.5)
@@ -49,6 +51,7 @@ def _draw_number_grid(
 
 
 def _draw_stack(axis: plt.Axes, groups: int, layers: int) -> None:
+    """用叠放的小矩阵表示通道轴和批次轴。"""
     colors = ("#BFDBFE", "#93C5FD", "#60A5FA")
     for group in range(groups):
         group_x = 0.08 + group * 0.47
@@ -75,7 +78,7 @@ def _draw_stack(axis: plt.Axes, groups: int, layers: int) -> None:
 
 
 def plot_tensor_dimensions() -> plt.Figure:
-    """Show scalar, vector, matrix, channel stack and batch side by side."""
+    """并排展示标量、向量、矩阵、矩阵堆叠和批次。"""
 
     configure_chinese_font()
     figure, axes = plt.subplots(1, 5, figsize=(16, 3.3), constrained_layout=True)
@@ -114,7 +117,7 @@ def plot_tensor_dimensions() -> plt.Figure:
 
 
 def plot_tensor_indexing(tensor: torch.Tensor) -> plt.Figure:
-    """Highlight common two-dimensional indexing operations."""
+    """高亮二维 Tensor 的整表、行、列和单元素索引。"""
 
     if tensor.ndim != 2:
         raise ValueError("索引示意图需要一个二维 Tensor。")
@@ -136,7 +139,7 @@ def plot_tensor_indexing(tensor: torch.Tensor) -> plt.Figure:
 
 
 def plot_sample_to_batch(sample: torch.Tensor, batch: torch.Tensor) -> plt.Figure:
-    """Connect one feature vector to a mini-batch of feature vectors."""
+    """连接一个二维样本、散点位置和按行堆叠的 mini-batch。"""
 
     if sample.shape != (2,) or batch.ndim != 2 or batch.shape[1] != 2:
         raise ValueError("示例要求 sample.shape == (2,) 且 batch.shape == (B, 2)。")
@@ -166,7 +169,7 @@ def plot_sample_to_batch(sample: torch.Tensor, batch: torch.Tensor) -> plt.Figur
 
 
 def plot_image_tensor_shapes(image: torch.Tensor, batch_size: int = 4) -> plt.Figure:
-    """Show how a 28x28 image gains channel and batch axes."""
+    """展示 28×28 图像增加通道轴、批次轴及展平后的形状。"""
 
     if image.ndim != 2 or tuple(image.shape) != (28, 28):
         raise ValueError("图像示例需要 shape == (28, 28)。")
@@ -208,7 +211,7 @@ def plot_image_tensor_shapes(image: torch.Tensor, batch_size: int = 4) -> plt.Fi
 
 
 def plot_moons_tensor_map(data: DatasetBundle, rows: int = 6) -> plt.Figure:
-    """Link points in the moons dataset to rows in X and entries in y."""
+    """将 moons 散点、X 中的一行、标签 y 和 Tensor shape 对齐。"""
 
     configure_chinese_font()
     x = data.x_train.detach().cpu().numpy()
@@ -261,7 +264,7 @@ def plot_moons_tensor_map(data: DatasetBundle, rows: int = 6) -> plt.Figure:
 
 
 def plot_mlp_shape_flow(batch_size: int, hidden_size: int, n_classes: int) -> plt.Figure:
-    """Draw the shape journey through a two-layer MLP."""
+    """画出一批数据通过两层 MLP 时的 shape 变化。"""
 
     configure_chinese_font()
     figure, axis = plt.subplots(figsize=(12, 3.2), constrained_layout=True)

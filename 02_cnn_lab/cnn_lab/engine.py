@@ -12,12 +12,21 @@ from .data import ImageDatasetBundle, load_digits_data, resolve_device, seed_eve
 from .model import SmallCNN
 
 
+MAX_EPOCHS = 40
+MAX_CHANNELS = 64
+MAX_KERNEL_SIZE = 7
+MAX_BATCH_SIZE = 256
+MAX_UPDATE_STEPS = 4_000
+MAX_PARAMETERS = 750_000
+
+
 @dataclass(frozen=True)
 class ExperimentConfig:
     name: str = "基线：两层 CNN + Max Pooling"
     channels: tuple[int, int] = (8, 16)
     kernel_size: int = 3
     pooling: str = "max"
+    activation: str = "relu"
     dropout: float = 0.0
     learning_rate: float = 0.01
     batch_size: int = 64
@@ -40,6 +49,30 @@ class TrainingResult:
     @property
     def final_test_accuracy(self) -> float:
         return self.test_accuracy[-1]
+
+
+def estimate_update_steps(config: ExperimentConfig, train_samples: int) -> int:
+    """计算一次 CNN 实验会执行多少次参数更新。"""
+    return int(np.ceil(train_samples / config.batch_size)) * config.epochs
+
+
+def validate_config(config: ExperimentConfig) -> None:
+    """在创建模型前检查配置，避免误填参数拖慢共享服务器。"""
+    if config.device == "auto":
+        raise ValueError('共享服务器不允许 device="auto"；请使用 cpu，或填写课堂分配的 cuda:编号。')
+    if config.epochs <= 0 or config.batch_size <= 0 or config.learning_rate <= 0:
+        raise ValueError("epochs、batch_size 和 learning_rate 必须大于 0。")
+    if len(config.channels) != 2 or any(value <= 0 for value in config.channels):
+        raise ValueError("channels 必须包含两个正整数。")
+    if max(config.channels) > MAX_CHANNELS:
+        raise ValueError(f"共享服务器安全上限：每层通道数不能超过 {MAX_CHANNELS}。")
+    if config.kernel_size > MAX_KERNEL_SIZE:
+        raise ValueError(f"共享服务器安全上限：kernel_size 不能超过 {MAX_KERNEL_SIZE}。")
+    if config.epochs > MAX_EPOCHS or config.batch_size > MAX_BATCH_SIZE:
+        raise ValueError(
+            f"共享服务器安全上限：epochs≤{MAX_EPOCHS}、batch_size≤{MAX_BATCH_SIZE}。"
+            "四小时项目应增加分析深度，而不是扩大训练量。"
+        )
 
 
 def _accuracy(model: nn.Module, x: torch.Tensor, y: torch.Tensor, device: torch.device) -> float:
@@ -71,19 +104,32 @@ def shifted_accuracy(result: TrainingResult, pixels: int = 1) -> float:
 def train_experiment(
     config: ExperimentConfig, data: ImageDatasetBundle | None = None
 ) -> TrainingResult:
-    if config.epochs <= 0 or config.batch_size <= 0 or config.learning_rate <= 0:
-        raise ValueError("epochs、batch_size 和 learning_rate 必须大于 0。")
+    validate_config(config)
     seed_everything(config.seed)
     device = resolve_device(config.device)
     data = data or load_digits_data(seed=config.seed)
+    update_steps = estimate_update_steps(config, len(data.x_train))
+    if update_steps > MAX_UPDATE_STEPS:
+        raise ValueError(
+            f"本次实验预计更新 {update_steps} 次，超过共享服务器上限 {MAX_UPDATE_STEPS} 次；"
+            "请减少 epochs，或适当增大 batch_size。"
+        )
     model = SmallCNN(
         image_size=data.image_size,
         n_classes=data.n_classes,
         channels=config.channels,
         kernel_size=config.kernel_size,
         pooling=config.pooling,
+        activation=config.activation,
         dropout=config.dropout,
-    ).to(device)
+    )
+    parameter_count = sum(parameter.numel() for parameter in model.parameters())
+    if parameter_count > MAX_PARAMETERS:
+        raise ValueError(
+            f"本模型有 {parameter_count:,} 个参数，超过共享服务器上限 {MAX_PARAMETERS:,}；"
+            "请减少通道数或使用 Pooling。"
+        )
+    model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     loss_function = nn.CrossEntropyLoss()
     loader = DataLoader(
@@ -126,7 +172,7 @@ def train_experiment(
         train_accuracy=train_accuracy,
         test_accuracy=test_accuracy,
         elapsed_seconds=time.perf_counter() - start,
-        parameter_count=sum(parameter.numel() for parameter in model.parameters()),
+        parameter_count=parameter_count,
     )
 
 

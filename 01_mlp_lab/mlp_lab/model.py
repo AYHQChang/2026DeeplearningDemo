@@ -12,7 +12,7 @@ def _activation(name: str) -> type[nn.Module]:
         "sigmoid": nn.Sigmoid,
     }
     if name not in choices:
-        raise ValueError("activation 只能是 relu、tanh 或 sigmoid。")
+        raise ValueError(f"activation 只能是：{'、'.join(choices)}。")
     return choices[name]
 
 
@@ -26,6 +26,7 @@ class MLP(nn.Module):
         dropout: float,
         n_classes: int,
     ) -> None:
+        """按 2 → 隐藏层 → 类别数搭建网络，隐藏层后可加入 Dropout。"""
         super().__init__()
         activation_class = _activation(activation)
         sizes = (2, *hidden_sizes, n_classes)
@@ -43,4 +44,5 @@ class MLP(nn.Module):
         self.network = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """接收 [B,2] 特征，返回 [B,n_classes] 的未归一化 logits。"""
         return self.network(x)

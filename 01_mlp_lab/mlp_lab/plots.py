@@ -1,4 +1,4 @@
-"""Matplotlib figures used by notebooks and command-line examples."""
+"""分类 MLP 的数据、决策边界、训练曲线和组件比较图。"""
 
 
 from functools import lru_cache
@@ -64,6 +64,7 @@ def configure_chinese_font() -> str:
 
 
 def _mesh(data: DatasetBundle, resolution: int=180) -> tuple[np.ndarray, np.ndarray, torch.Tensor]:
+    """在二维数据范围内建立规则网格，供模型预测决策区域。"""
     all_x = torch.cat((data.x_train, data.x_test)).numpy()
     margin = 0.55
     x_min, x_max = (all_x[:, 0].min() - margin, all_x[:, 0].max() + margin)
@@ -74,6 +75,7 @@ def _mesh(data: DatasetBundle, resolution: int=180) -> tuple[np.ndarray, np.ndar
 
 
 def _predict_grid(result: TrainingResult, grid: torch.Tensor, state: dict[str, torch.Tensor] | None=None) -> np.ndarray:
+    """用当前或指定轮次参数预测网格类别，并在完成后恢复模型参数。"""
     device = next(result.model.parameters()).device
     current_state = _clone_state(result.model)
     if state is not None:
@@ -87,6 +89,7 @@ def _predict_grid(result: TrainingResult, grid: torch.Tensor, state: dict[str, t
 
 
 def _draw_boundary(axis: plt.Axes, result: TrainingResult, state: dict[str, torch.Tensor] | None=None, mark_errors: bool=False) -> None:
+    """在一个坐标轴上绘制决策区域、训练点及可选的测试误判点。"""
     xx, yy, grid = _mesh(result.data)
     zz = _predict_grid(result, grid, state=state).reshape(xx.shape)
     axis.contourf(xx, yy, zz, levels=np.arange(result.data.n_classes + 1) - 0.5, cmap=REGION_COLORS, alpha=0.72)
@@ -108,6 +111,7 @@ def _draw_boundary(axis: plt.Axes, result: TrainingResult, state: dict[str, torc
 
 
 def plot_dataset_gallery(seed: int=42, n_samples: int=600) -> plt.Figure:
+    """并排显示月牙、同心圆与三分类螺旋数据。"""
     configure_chinese_font()
     fig, axes = plt.subplots(1, 3, figsize=(13.5, 4.1), constrained_layout=True)
     for axis, name, title in zip(axes, ('moons', 'circles', 'spiral'), ('月牙：局部弯曲', '同心圆：封闭边界', '螺旋：复杂非线性')):
@@ -126,6 +130,7 @@ def plot_dataset_gallery(seed: int=42, n_samples: int=600) -> plt.Figure:
 
 
 def plot_training_story(result: TrainingResult) -> plt.Figure:
+    """展示六个决策边界阶段，以及 Loss、Accuracy 和实验信息卡。"""
     configure_chinese_font()
     available_epochs = sorted(result.snapshots)
     stages = available_epochs[:2] + available_epochs[-4:]
@@ -157,6 +162,7 @@ def plot_training_story(result: TrainingResult) -> plt.Figure:
 
 
 def plot_final_diagnosis(result: TrainingResult) -> plt.Figure:
+    """展示最终边界、误判点、Loss、Accuracy 与梯度范数。"""
     configure_chinese_font()
     fig, axes = plt.subplots(1, 4, figsize=(18, 4.4), constrained_layout=True)
     _draw_boundary(axes[0], result, mark_errors=True)
@@ -186,6 +192,7 @@ def plot_final_diagnosis(result: TrainingResult) -> plt.Figure:
 
 
 def plot_comparison(results: list[TrainingResult], title: str) -> plt.Figure:
+    """将多组单变量实验按列对齐，统一比较四类图形证据。"""
     if not results:
         raise ValueError('results 不能为空。')
     configure_chinese_font()
@@ -218,6 +225,7 @@ def plot_comparison(results: list[TrainingResult], title: str) -> plt.Figure:
 
 
 def format_result_table(results: list[TrainingResult]) -> str:
+    """将多组结果格式化成可在终端阅读的等宽文本表。"""
     lines = ['配置对比', '-' * 86, f"{'配置':<30}{'测试准确率':>12}{'参数量':>12}{'耗时(秒)':>12}{'末轮梯度':>14}", '-' * 86]
     for result in results:
         lines.append(f'{result.config.name:<30}{result.final_test_accuracy:>11.1%}{result.parameter_count:>12,}{result.elapsed_seconds:>12.2f}{result.gradient_norm[-1]:>14.4g}')
@@ -226,10 +234,12 @@ def format_result_table(results: list[TrainingResult]) -> str:
 
 
 def print_result_table(results: list[TrainingResult]) -> None:
+    """打印 format_result_table 生成的结果表。"""
     print('\n' + format_result_table(results))
 
 
 def save_or_show(figure: plt.Figure, filename: str, save_dir: str | Path | None=None, show: bool=True) -> None:
+    """按需保存图片并显示；不显示时主动关闭 Figure 释放内存。"""
     if save_dir is not None:
         destination = Path(save_dir)
         destination.mkdir(parents=True, exist_ok=True)

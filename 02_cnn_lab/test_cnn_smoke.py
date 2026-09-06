@@ -1,5 +1,6 @@
 """CNN 实验室的最小可运行检查，不依赖 pytest。"""
 
+from dataclasses import replace
 from io import BytesIO
 from unittest.mock import patch
 import warnings
@@ -10,11 +11,11 @@ import matplotlib.pyplot as plt
 import torch
 
 from cnn_lab import (
-    SmallCNN, base_config, compare_pooling_experiments, configure_chinese_font,
+    SmallCNN, base_config, challenge_report, compare_pooling_experiments, configure_chinese_font,
     load_digits_data, plot_convolution_demo, plot_digit_gallery,
     plot_feature_maps, plot_pixel_and_shape, plot_pooling_comparison,
     plot_pooling_demo, plot_training_overview, resolve_device, shift_images_right,
-    train_experiment,
+    train_experiment, validate_config,
 )
 
 
@@ -53,6 +54,33 @@ def main() -> None:
     maps = result.model.feature_maps(data.x_test[:2])
     assert maps["第一层卷积"].shape == (2, 4, 8, 8)
     assert maps["第二层卷积"].shape == (2, 8, 4, 4)
+    tanh_model = SmallCNN(image_size=8, channels=(4, 8), activation="tanh")
+    assert tanh_model(data.x_test[:2]).shape == (2, 10)
+
+    report = challenge_report(
+        result,
+        accuracy_target=0.0,
+        shifted_target=0.0,
+        parameter_budget=2_000,
+        update_budget=50,
+    )
+    assert report["badges"] == 4
+    assert report["update_steps"] == 44
+
+    for unsafe_config, expected_message in (
+        (replace(config, device="auto"), "不允许 device=\"auto\""),
+        (replace(config, epochs=41), "epochs≤40"),
+        (replace(config, channels=(65, 8)), "通道数不能超过 64"),
+        (replace(config, kernel_size=9), "kernel_size 不能超过 7"),
+        (replace(config, epochs=40, batch_size=1), "预计更新"),
+    ):
+        try:
+            validate_config(unsafe_config)
+            train_experiment(unsafe_config, data=data)
+        except ValueError as error:
+            assert expected_message in str(error)
+        else:
+            raise AssertionError("超出共享服务器预算的配置应该被拒绝。")
 
     configure_chinese_font()
     figures = [

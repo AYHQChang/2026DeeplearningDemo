@@ -5,6 +5,14 @@ from torch import nn
 from torch.nn import functional as F
 
 
+def _activation(name: str):
+    """把教学配置中的名称转换为 PyTorch 激活函数。"""
+    choices = {"relu": F.relu, "tanh": torch.tanh}
+    if name not in choices:
+        raise ValueError(f"activation 只能是：{'、'.join(choices)}。")
+    return choices[name]
+
+
 class SmallCNN(nn.Module):
     """两层卷积网络；空间尺寸由 `image_size` 计算，不写死为 8×8。"""
 
@@ -15,6 +23,7 @@ class SmallCNN(nn.Module):
         channels: tuple[int, int] = (8, 16),
         kernel_size: int = 3,
         pooling: str = "max",
+        activation: str = "relu",
         dropout: float = 0.0,
     ) -> None:
         super().__init__()
@@ -30,6 +39,7 @@ class SmallCNN(nn.Module):
             raise ValueError("dropout 必须位于 [0, 1) 区间。")
 
         padding = kernel_size // 2
+        self.activation = _activation(activation)
         self.conv1 = nn.Conv2d(1, channels[0], kernel_size, padding=padding)
         self.conv2 = nn.Conv2d(channels[0], channels[1], kernel_size, padding=padding)
         self.pool = {
@@ -47,9 +57,9 @@ class SmallCNN(nn.Module):
     def feature_maps(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         """返回两层激活和池化结果，供 Notebook 观察。"""
 
-        first = F.relu(self.conv1(x))
+        first = self.activation(self.conv1(x))
         pooled = self.pool(first)
-        second = F.relu(self.conv2(pooled))
+        second = self.activation(self.conv2(pooled))
         return {"第一层卷积": first, "池化后": pooled, "第二层卷积": second}
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

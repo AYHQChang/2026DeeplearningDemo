@@ -1,4 +1,4 @@
-"""Offline datasets and device selection shared by all MLP examples."""
+"""分类 MLP 共用的数据生成、数据划分、标准化和设备选择。"""
 
 
 from dataclasses import dataclass
@@ -13,6 +13,11 @@ import torch
 
 @dataclass
 class DatasetBundle:
+    """一次分类实验所需的完整数据。
+
+    raw 数组保留标准化前的训练/测试特征；Tensor 用于模型计算。
+    feature_mean 与 feature_scale 来自训练集，可用于解释标准化过程。
+    """
     x_train_raw: np.ndarray
     x_test_raw: np.ndarray
     x_train: torch.Tensor
@@ -26,6 +31,7 @@ class DatasetBundle:
 
 
 def seed_everything(seed: int) -> None:
+    """限制 CPU 线程并固定 Python、NumPy 和 PyTorch 的随机种子。"""
     # 共享服务器课堂模式：避免几十个 Notebook 各自占满全部 CPU 线程。
     torch.set_num_threads(1)
     random.seed(seed)
@@ -36,6 +42,7 @@ def seed_everything(seed: int) -> None:
 
 
 def resolve_device(requested: str) -> torch.device:
+    """将 cpu、cuda、cuda:编号或 auto 检查并转换成 torch.device。"""
     indexed_cuda = requested.startswith('cuda:') and requested[5:].isdigit()
     if requested not in {'auto', 'cpu', 'cuda'} and not indexed_cuda:
         raise ValueError('device 只能是 auto、cpu、cuda 或 cuda:编号。')
@@ -49,6 +56,7 @@ def resolve_device(requested: str) -> torch.device:
 
 
 def _make_spiral(n_samples: int, noise: float, seed: int) -> tuple[np.ndarray, np.ndarray]:
+    """离线生成三分类螺旋数据，返回特征 [N,2] 和标签 [N]。"""
     rng = np.random.default_rng(seed)
     n_classes = 3
     per_class = n_samples // n_classes
@@ -65,6 +73,7 @@ def _make_spiral(n_samples: int, noise: float, seed: int) -> tuple[np.ndarray, n
 
 
 def make_dataset(name: str, n_samples: int=600, noise: float=0.2, seed: int=42) -> DatasetBundle:
+    """生成指定二维数据，分层划分 75/25，并只用训练集拟合标准化器。"""
     if name == 'moons':
         x, y = make_moons(n_samples=n_samples, noise=noise, random_state=seed)
     elif name == 'circles':
@@ -73,9 +82,11 @@ def make_dataset(name: str, n_samples: int=600, noise: float=0.2, seed: int=42) 
         x, y = _make_spiral(n_samples=n_samples, noise=noise, seed=seed)
     else:
         raise ValueError('dataset 只能是 moons、circles 或 spiral。')
+    # stratify=y 让训练集和测试集尽量保持原始类别比例。
     x_train_raw, x_test_raw, y_train, y_test = train_test_split(x, y, test_size=0.25, random_state=seed, stratify=y)
     x_train_raw = x_train_raw.astype(np.float32)
     x_test_raw = x_test_raw.astype(np.float32)
+    # 只在训练集 fit，测试集复用相同均值和标准差，避免数据泄漏。
     scaler = StandardScaler().fit(x_train_raw)
     x_train = scaler.transform(x_train_raw).astype(np.float32)
     x_test = scaler.transform(x_test_raw).astype(np.float32)
