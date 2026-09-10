@@ -58,8 +58,8 @@ def estimate_update_steps(config: ExperimentConfig, train_samples: int) -> int:
 
 def validate_config(config: ExperimentConfig) -> None:
     """在创建模型前检查配置，避免误填参数拖慢共享服务器。"""
-    if config.device == "auto":
-        raise ValueError('共享服务器不允许 device="auto"；请使用 cpu，或填写课堂分配的 cuda:编号。')
+    if config.device in {"auto", "cuda"}:
+        raise ValueError('共享服务器不允许 auto 或裸 cuda；请使用 cpu，或填写课堂分配的 cuda:编号。')
     if config.epochs <= 0 or config.batch_size <= 0 or config.learning_rate <= 0:
         raise ValueError("epochs、batch_size 和 learning_rate 必须大于 0。")
     if len(config.channels) != 2 or any(value <= 0 for value in config.channels):

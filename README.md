@@ -8,7 +8,7 @@
 
 ## 🎯 这个项目是做什么的？
 
-每个实验室都会把一个深度学习主题拆成六个小步骤：
+每个实验室都会先把一个深度学习主题拆成六个基础步骤；完成综合建设的实验室再增加一份约四小时的观察、编程和证据项目：
 
 ```text
 一键看到结果
@@ -44,7 +44,7 @@
 | 5 | [05_自主修改练习.ipynb](./01_mlp_lab/05_自主修改练习.ipynb) | 修改一个参数后，与基线结果进行比较 |
 | 6 | [06_MLP闯关项目.ipynb](./01_mlp_lab/06_MLP闯关项目.ipynb) | 四小时综合闯关、代码修改与证据报告 |
 
-前六份 Notebook 保存了成功运行的图形输出；第 7 份是留给学生填写的综合项目。
+前六份 Notebook 保存了成功运行的图形输出；第 7 份是待填写的综合项目。
 即使暂时没有配置好运行环境，也可以先在 GitHub 上打开前六份预览实验结果。👀
 
 更详细的 MLP 使用说明见 [01_mlp_lab/README.md](./01_mlp_lab/README.md)。
@@ -88,6 +88,22 @@
 
 核心实验默认使用 CPU。更详细的运行方法见 [03_rnn_lab/README.md](./03_rnn_lab/README.md)。
 
+### `04_transformer_lab`：小型 Transformer 与注意力寻宝
+
+这个实验室不用大语言模型和在线语料，而是让一层 Transformer 从数量相同的红、绿、蓝 token 中找回第 0 位颜色。实验中可以直接观察位置编码、Q/K/V、Attention 权重和组件对比。
+
+| 顺序 | Notebook | 你会看到什么 |
+|---:|---|---|
+| 0 | [00_一键体验.ipynb](./04_transformer_lab/00_一键体验.ipynb) | 彩色 token、训练曲线、混淆矩阵和 QUERY Attention |
+| 1 | [01_Token与三维张量.ipynb](./04_transformer_lab/01_Token与三维张量.ipynb) | `[B,T]` token ids 到 `[B,T,D]` Embedding |
+| 2 | [02_位置编码与QKV.ipynb](./04_transformer_lab/02_位置编码与QKV.ipynb) | 正弦位置编码和一次 Scaled Dot-product Attention 手算 |
+| 3 | [03_训练第一个Transformer.ipynb](./04_transformer_lab/03_训练第一个Transformer.ipynb) | 一层 Encoder 的训练、梯度、预测和 Attention |
+| 4 | [04_Transformer组件对比.ipynb](./04_transformer_lab/04_Transformer组件对比.ipynb) | 位置编码开关与 1/2/4 Head 受控对比 |
+| 5 | [05_自主修改练习.ipynb](./04_transformer_lab/05_自主修改练习.ipynb) | 修改一行激活映射并保留证据 |
+| 6 | [06_注意力寻宝项目.ipynb](./04_transformer_lab/06_注意力寻宝项目.ipynb) | 240 分钟综合项目、四徽章和预算挑战 |
+
+共享入口默认 CPU 单线程并拒绝 `device="auto"`；模型、序列、数据量、更新次数、参数量和 Attention 组合预算均有训练前硬上限。更详细的运行方法见 [04_transformer_lab/README.md](./04_transformer_lab/README.md)。
+
 ## 🔍 运行一次实验，可以观察哪些信息？
 
 - 输入数据和 tensor shape；
@@ -117,6 +133,23 @@
 - 修改参数，并逐步过渡到修改少量模型代码；
 - 根据数值和图片写出有证据、有边界的实验结论。
 
+## ⚡ CPU / GPU 速度教学入口
+
+四个项目都保留各自的 `demo.py`。需要公平展示 CPU 与 GPU 训练速度时，统一从仓库根目录运行：
+
+```bash
+python device_speed_demo.py --lab mlp --devices cpu,cuda:0
+python device_speed_demo.py --lab cnn --devices cpu,cuda:0
+python device_speed_demo.py --lab rnn --devices cpu,cuda:0
+python device_speed_demo.py --lab transformer --devices cpu,cuda:0 --preview-epochs 2
+```
+
+把 `cuda:0` 换成教师分配的 GPU 编号。脚本始终顺序运行两个设备，不使用 `auto`，也不一次启动四个项目。
+
+`--target-epochs` 表示完整训练目标，`--preview-epochs` 表示实际只运行多少个 Epoch。预览模式会输出训练时间、每 Epoch 时间、端到端时间、预计完整时间、预计剩余时间、GPU 峰值显存和 CPU/GPU 加速比。估时是按当前每 Epoch 线性外推的粗略值；预览 Accuracy 不作为最终效果结论。
+
+这些课堂模型很小，GPU 可能因为初始化、数据传输和小算子开销而比 CPU 更慢。这是需要解释的实验结果，不是程序故障。运行时间只用于认识设备与计算规模，不计入课程成绩。
+
 ## 🚀 最快开始方式
 
 ### 第一步：获取项目
@@ -128,6 +161,14 @@ cd 2026DeeplearningDemo
 
 ### 第二步：进入课程环境并检查
 
+Windows 自带电脑第一次配置时，先阅读 [Windows 自带电脑：Conda 与 PyTorch 安装指南](./5.Windows自带电脑Conda与PyTorch安装.md)，并运行只读预检：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\check_windows_environment.ps1"
+```
+
+预检只报告电脑、Conda、Python、PyTorch 和 NVIDIA 驱动状态，不会自动安装或修改系统。根据指南选择 CPU 或 NVIDIA CUDA 路线后，再执行下面的统一验收。
+
 ```bash
 conda activate dl2026
 python check_environment.py
@@ -135,9 +176,11 @@ python 01_mlp_lab/test_mlp_smoke.py
 python 01_mlp_lab/test_house_price_smoke.py
 python 02_cnn_lab/test_cnn_smoke.py
 python 03_rnn_lab/test_rnn_smoke.py
+python 04_transformer_lab/test_transformer_smoke.py
+python test_device_speed_demo.py
 ```
 
-看到以下内容，说明基本环境和 MLP 实验可以运行：
+看到以下内容，说明基本环境、四个实验室和统一速度入口可以运行：
 
 ```text
 环境自检通过，可以离线运行课堂 Demo。
@@ -145,6 +188,8 @@ MLP smoke test passed.
 House price smoke test passed.
 CNN smoke test passed.
 RNN smoke test passed.
+Transformer smoke test passed.
+Device speed demo smoke test passed.
 ```
 
 ### 第三步：打开第一份 Notebook
@@ -164,24 +209,34 @@ RNN smoke test passed.
 | `1.1` MLP 房价预测 | ✅ 已完成 | 多特征回归、数据划分、参数比较 | 房源表、预测阶段、误差图、自定义房源预测 |
 | `02_cnn_lab` | ✅ 已完成 | 卷积、池化、特征提取和图像分类 | 卷积核、特征图、混淆矩阵、错误样本 |
 | `03_rnn_lab` | ✅ 已完成 | RNN、LSTM、GRU 和长期依赖 | 秘密时间线、隐藏状态、梯度、长度对比 |
+| `04_transformer_lab` | ✅ 已完成 | Token、位置编码、Self-Attention 和小型 Encoder | Q/K/V 手算、Attention 图、组件对比、四小时挑战 |
 
 后续实验室会继续采用“基础六步 + 综合项目”的路线：先快速看到结果，再理解数据、
 训练规则和训练过程，随后完成组件对比、自主修改与证据报告。
 
-## 📚 第一次使用服务器？按这个顺序阅读
+## 📚 第一次配置？按设备选择
+
+### Windows 自带电脑
+
+1. [Windows 自带电脑：Conda 与 PyTorch 安装指南](./5.Windows自带电脑Conda与PyTorch安装.md)
+2. [只读 Windows 环境预检脚本](./check_windows_environment.ps1)
+
+CPU 是所有 Windows 电脑的保底路线；只有 `nvidia-smi` 正常的 NVIDIA 电脑才选择 CUDA wheel。AMD / Intel 显卡在本课程的 Windows 标准路线中使用 CPU。
+
+### Linux 课程服务器
 
 1. [VS Code Remote-SSH 连接 Linux 服务器与失败排查](./1.1%28补充材料%29VSCode%20Remote-SSH连接Linux服务器与失败排查.md)
 2. [GitHub 项目在 Linux 服务器上的拉取与更新](./2.1%28补充材料%29GitHub项目在Linux服务器上的拉取与更新.md)
 3. [Linux 服务器 Conda 与 PyTorch 安装](./3.Linux服务器Conda与PyTorch安装.md)
 4. [Linux 与 Conda 常用命令](./4.Linux与Conda常用命令.md)
 
-公开文档中的服务器 IP、端口和登录信息使用占位符，实际连接信息以课堂说明为准。
+公开文档中的服务器 IP、端口和登录信息使用占位符，实际连接信息以课堂说明为准。Windows 安装命令是带核对日期的课程快照；PyTorch 版本发生变化时，以指南链接的官方选择器为准。
 
 ## 📁 为什么项目里有两份 README？
 
 - 根目录的 [README.md](./README.md)：GitHub 仓库首页，介绍整个课程项目、学习路线和建设计划；
 - [01_mlp_lab/README.md](./01_mlp_lab/README.md)：MLP 子项目说明，介绍七份核心 Notebook、代码结构和具体运行方法；
-- [02_cnn_lab/README.md](./02_cnn_lab/README.md) 和 [03_rnn_lab/README.md](./03_rnn_lab/README.md)：分别提供 CNN 与 RNN 实验室的具体入口。
+- [02_cnn_lab/README.md](./02_cnn_lab/README.md)、[03_rnn_lab/README.md](./03_rnn_lab/README.md) 和 [04_transformer_lab/README.md](./04_transformer_lab/README.md)：分别提供 CNN、RNN 与 Transformer 实验室的具体入口。
 
 每个已完成的实验室都有自己的 README。根目录 README 负责“带你找到方向”，子目录 README 负责“带你完成这个实验”。
 

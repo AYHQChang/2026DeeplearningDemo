@@ -68,7 +68,8 @@ def main() -> None:
     assert report["update_steps"] == 44
 
     for unsafe_config, expected_message in (
-        (replace(config, device="auto"), "不允许 device=\"auto\""),
+        (replace(config, device="auto"), "cuda:编号"),
+        (replace(config, device="cuda"), "cuda:编号"),
         (replace(config, epochs=41), "epochs≤40"),
         (replace(config, channels=(65, 8)), "通道数不能超过 64"),
         (replace(config, kernel_size=9), "kernel_size 不能超过 7"),

@@ -71,8 +71,8 @@ def estimate_update_steps(config: ExperimentConfig) -> int:
 
 def validate_config(config: ExperimentConfig) -> None:
     """在训练前检查配置，并阻止误填参数拖慢共享服务器。"""
-    if config.device == 'auto':
-        raise ValueError('共享服务器不允许 device="auto"；请使用 cpu，或填写课堂分配的 cuda:编号。')
+    if config.device in {'auto', 'cuda'}:
+        raise ValueError('共享服务器不允许 auto 或裸 cuda；请使用 cpu，或填写课堂分配的 cuda:编号。')
     if not config.hidden_sizes or any((size <= 0 for size in config.hidden_sizes)):
         raise ValueError('hidden_sizes 至少包含一个正整数。')
     if len(config.hidden_sizes) > MAX_HIDDEN_LAYERS or max(config.hidden_sizes) > MAX_HIDDEN_WIDTH:

@@ -27,6 +27,7 @@ from rnn_lab import (
     plot_training_history,
     resolve_device,
     run_experiment,
+    validate_config,
 )
 
 
@@ -61,6 +62,13 @@ def main() -> None:
         cell_type="lstm", sequence_length=9, hidden_size=8, epochs=2,
         train_size=60, val_size=30, test_size=30, batch_size=16, seed=7,
     )
+    for unsafe_device in ("auto", "cuda"):
+        try:
+            validate_config(ExperimentConfig(device=unsafe_device))
+        except ValueError as error:
+            assert "cuda:编号" in str(error)
+        else:
+            raise AssertionError("共享训练必须拒绝 auto 和裸 cuda。")
     result = run_experiment(config, data=data)
     assert len(result["history"]["train_loss"]) == 2
     assert 0.0 <= result["metrics"]["accuracy"] <= 1.0

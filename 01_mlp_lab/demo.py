@@ -131,7 +131,7 @@ def build_parser() -> argparse.ArgumentParser:
     """
 
     parser = argparse.ArgumentParser(description="MLP 组件与决策边界课堂实验室")
-    parser.add_argument("--device", default="cpu", help="运行设备：cpu、auto、cuda 或 cuda:编号；课堂默认 CPU")
+    parser.add_argument("--device", default="cpu", help="运行设备：cpu 或课堂分配的 cuda:编号；课堂默认 CPU")
     parser.add_argument("--mode", choices=("fast", "extended"), default="fast", help="课堂快速模式或课后扩展模式")
     parser.add_argument("--dataset", choices=("moons", "circles", "spiral"), default="spiral", help="二维数据集")
     parser.add_argument(
@@ -261,7 +261,7 @@ def save_experiment_log(
     Args:
         results: 基线的一项结果，或某个组件对比的多项结果。
         experiment: ``baseline`` 或组件名称，用于文件名和筛选。
-        requested_device: 命令行传入的 ``auto``、``cpu`` 或 ``cuda``。
+        requested_device: 命令行传入的 ``cpu`` 或 ``cuda:x``。
         resolved_device: 实际运行的 ``cpu`` 或 ``cuda``。
         mode: ``fast`` 或 ``extended``。
         log_dir: 日志目录；不存在时自动创建。

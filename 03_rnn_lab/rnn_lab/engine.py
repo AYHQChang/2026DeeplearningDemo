@@ -42,6 +42,8 @@ class ExperimentConfig:
 def validate_config(config: ExperimentConfig) -> None:
     """尽早报告常见配置错误，避免训练到一半才失败。"""
 
+    if config.device in {"auto", "cuda"}:
+        raise ValueError("共享服务器不允许 auto 或裸 cuda；请使用 cpu，或填写课堂分配的 cuda:编号。")
     if config.cell_type.lower() not in {"rnn", "lstm", "gru"}:
         raise ValueError("cell_type 只能是 rnn、lstm 或 gru。")
     if config.sequence_length < 3:

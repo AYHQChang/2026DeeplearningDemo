@@ -120,7 +120,8 @@ def main() -> None:
     assert report["update_steps"] == 12
 
     for unsafe_config, expected_message in (
-        (replace(config, device="auto"), "不允许 device=\"auto\""),
+        (replace(config, device="auto"), "cuda:编号"),
+        (replace(config, device="cuda"), "cuda:编号"),
         (replace(config, epochs=201), "epochs≤200"),
         (replace(config, hidden_sizes=(129,)), "每层不超过 128"),
         (replace(config, epochs=200, n_samples=1500, batch_size=1), "预计更新"),
