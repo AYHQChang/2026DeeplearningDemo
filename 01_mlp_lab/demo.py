@@ -288,12 +288,17 @@ def save_experiment_log(
         "mlp_lab": digest.hexdigest(),
         "demo.py": _sha256_file(LAB_DIR / "demo.py"),
     }
+    resolved_torch_device = torch.device(resolved_device)
     environment = {
         "python": platform.python_version(),
         "torch": torch.__version__,
         "cuda_runtime": torch.version.cuda,
         "cuda_available": torch.cuda.is_available(),
-        "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+        "gpu": (
+            torch.cuda.get_device_name(resolved_torch_device)
+            if resolved_torch_device.type == "cuda"
+            else None
+        ),
     }
     record = {
         "schema_version": 1,

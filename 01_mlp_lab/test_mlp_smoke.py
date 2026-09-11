@@ -16,6 +16,7 @@
 
 from dataclasses import replace
 from io import BytesIO
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -163,7 +164,17 @@ def main() -> None:
             [result], "smoke", "cpu", "cpu", "fast", Path(temporary_dir)
         )
         assert json_path.exists() and text_path.exists() and csv_path.exists()
+        cpu_log = json.loads(json_path.read_text(encoding="utf-8"))
         assert "final_test_accuracy" in json_path.read_text(encoding="utf-8")
+        assert cpu_log["environment"]["gpu"] is None
+
+        with patch("demo.torch.cuda.get_device_name", return_value="课堂分配的 GPU") as get_name:
+            gpu_json_path, _, _ = save_experiment_log(
+                [result], "gpu-smoke", "cuda:1", "cuda:1", "fast", Path(temporary_dir)
+            )
+        get_name.assert_called_once_with(torch.device("cuda:1"))
+        gpu_log = json.loads(gpu_json_path.read_text(encoding="utf-8"))
+        assert gpu_log["environment"]["gpu"] == "课堂分配的 GPU"
 
     losses = comparison_configs("loss", config)
     assert {item.loss_name for item in losses} == {"cross_entropy", "mse"}
