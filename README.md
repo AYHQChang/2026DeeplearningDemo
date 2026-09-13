@@ -6,6 +6,8 @@
 
 这里的目标不是背代码，也不是只追求更高的 Accuracy，而是通过可以直接运行的 Notebook，真正看懂数据、模型、训练过程和实验对比。
 
+第一次接触完整代码项目？建议先阅读[《认识课程项目与工程化》](./0.%28补充材料%29认识课程项目与工程化.md)，用几分钟认识目录、资源、日志、缓存和 README。
+
 ## 🎯 这个项目是做什么的？
 
 每个实验室都会先把一个深度学习主题拆成六个基础步骤；完成综合建设的实验室再增加一份约四小时的观察、编程和证据项目：
@@ -227,8 +229,9 @@ CPU 是所有 Windows 电脑的保底路线；只有 `nvidia-smi` 正常的 NVID
 
 1. [VS Code Remote-SSH 连接 Linux 服务器与失败排查](./1.1%28补充材料%29VSCode%20Remote-SSH连接Linux服务器与失败排查.md)
 2. [GitHub 项目在 Linux 服务器上的拉取与更新](./2.1%28补充材料%29GitHub项目在Linux服务器上的拉取与更新.md)
-3. [Linux 服务器 Conda 与 PyTorch 安装](./3.Linux服务器Conda与PyTorch安装.md)
-4. [Linux 与 Conda 常用命令](./4.Linux与Conda常用命令.md)
+3. [保存个人实验并安全更新课程代码](./2.2%28补充材料%29保存个人实验并安全更新课程代码.md)
+4. [Linux 服务器 Conda 与 PyTorch 安装](./3.Linux服务器Conda与PyTorch安装.md)
+5. [Linux 与 Conda 常用命令](./4.Linux与Conda常用命令.md)
 
 公开文档中的服务器 IP、端口和登录信息使用占位符，实际连接信息以课堂说明为准。Windows 安装命令是带核对日期的课程快照；PyTorch 版本发生变化时，以指南链接的官方选择器为准。
 
