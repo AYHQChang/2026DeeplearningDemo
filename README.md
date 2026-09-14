@@ -163,7 +163,7 @@ cd 2026DeeplearningDemo
 
 ### 第二步：进入课程环境并检查
 
-Windows 自带电脑第一次配置时，先阅读 [Windows 自带电脑：Conda 与 PyTorch 安装指南](./5.Windows自带电脑Conda与PyTorch安装.md)，并运行只读预检：
+Windows 个人笔记本第一次配置时，先阅读 [Windows 个人笔记本：PyTorch 与课程依赖安装指南](./5.Windows个人笔记本PyTorch与课程依赖安装.md)，并运行只读预检：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\check_windows_environment.ps1"
@@ -218,17 +218,21 @@ Device speed demo smoke test passed.
 
 ## 📚 第一次配置？按设备选择
 
-### Windows 自带电脑
+第一次上代码课，先阅读[实验室电脑与个人笔记本两条准备路线](./1.2%28补充材料%29第一次代码课软件准备-实验室电脑与个人笔记本.md)，不要把两种电脑的步骤混在一起。
 
-1. [Windows 自带电脑：Conda 与 PyTorch 安装指南](./5.Windows自带电脑Conda与PyTorch安装.md)
-2. [只读 Windows 环境预检脚本](./check_windows_environment.ps1)
+### Windows 个人笔记本
+
+1. [Windows 笔记本安装与配置 Miniconda](./1.3%28补充材料%29Windows笔记本安装与配置Miniconda.md)
+2. [Windows 笔记本安装与配置 Git](./1.4%28补充材料%29Windows笔记本安装与配置Git.md)
+3. [Windows 个人笔记本：PyTorch 与课程依赖安装指南](./5.Windows个人笔记本PyTorch与课程依赖安装.md)
+4. [只读 Windows 环境预检脚本](./check_windows_environment.ps1)
 
 CPU 是所有 Windows 电脑的保底路线；只有 `nvidia-smi` 正常的 NVIDIA 电脑才选择 CUDA wheel。AMD / Intel 显卡在本课程的 Windows 标准路线中使用 CPU。
 
 ### Linux 课程服务器
 
 1. [VS Code Remote-SSH 连接 Linux 服务器与失败排查](./1.1%28补充材料%29VSCode%20Remote-SSH连接Linux服务器与失败排查.md)
-2. [GitHub 项目在 Linux 服务器上的拉取与更新](./2.1%28补充材料%29GitHub项目在Linux服务器上的拉取与更新.md)
+2. [Linux 服务器课程项目的发布与更新](./2.1%28补充材料%29Linux服务器课程项目的发布与更新.md)
 3. [保存个人实验并安全更新课程代码](./2.2%28补充材料%29保存个人实验并安全更新课程代码.md)
 4. [Linux 服务器 Conda 与 PyTorch 安装](./3.Linux服务器Conda与PyTorch安装.md)
 5. [Linux 与 Conda 常用命令](./4.Linux与Conda常用命令.md)
