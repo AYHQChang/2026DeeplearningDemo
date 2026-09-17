@@ -194,6 +194,26 @@ Transformer smoke test passed.
 Device speed demo smoke test passed.
 ```
 
+如果 Linux 服务器出现 GPU 数量减少、`nvidia-smi` 异常或 CUDA 初始化失败，运行只读诊断：
+
+```bash
+python check_server_gpu_health.py
+```
+
+它会分别检查 PCIe、NVIDIA 驱动、内核日志以及逐卡 PyTorch CUDA 初始化；详细说明见 [Linux 服务器 Conda 与 PyTorch 安装指南](./3.Linux服务器Conda与PyTorch安装.md)。
+
+如果已经确认一张故障卡不再出现在 `nvidia-smi` 中，首要目标是验收其余七张卡能否用于上课，请在**未设置 `CUDA_VISIBLE_DEVICES`** 的管理终端运行：
+
+```bash
+# 七卡共同训练一次，再让七张卡分别独立训练一次。
+python seven_gpu_test_demo.py
+
+# 可选：同时保存完整报告。
+python seven_gpu_test_demo.py --json logs/seven_gpu_test_report.json
+```
+
+只有“七卡组合测试”和七次“单卡测试”全部通过，脚本才会显示 `[PASS]` 并返回退出码 `0`。这里运行的是一个很小的 MLP 前向传播、反向传播和参数更新，不只是查看 GPU 名称。
+
 ### 第三步：打开第一份 Notebook
 
 1. 在 VS Code 中打开 `01_mlp_lab/00_一键体验.ipynb`；
