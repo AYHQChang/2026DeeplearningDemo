@@ -20,6 +20,8 @@ class ImageDatasetBundle:
     class_names: tuple[str, ...]
     dataset_name: str
     pixel_range: tuple[float, float]
+    x_val: torch.Tensor | None = None
+    y_val: torch.Tensor | None = None
 
     @property
     def n_classes(self) -> int:

@@ -201,9 +201,11 @@ def plot_training_overview(result: TrainingResult) -> plt.Figure:
     axes["loss"].set_xlabel("Epoch")
     axes["loss"].set_ylabel("Cross-Entropy")
     axes["accuracy"].plot(epochs, result.train_accuracy, color="#2563EB", label="训练")
-    axes["accuracy"].plot(epochs, result.test_accuracy, color="#DC2626", linestyle="--", label="测试")
+    evaluation_curve = result.val_accuracy if result.val_accuracy is not None else result.test_accuracy
+    evaluation_label = "验证" if result.val_accuracy is not None else "测试"
+    axes["accuracy"].plot(epochs, evaluation_curve, color="#DC2626", linestyle="--", label=evaluation_label)
     axes["accuracy"].set_ylim(0, 1.02)
-    axes["accuracy"].set_title("Accuracy：训练与测试差距")
+    axes["accuracy"].set_title(f"Accuracy：训练与{evaluation_label}差距")
     axes["accuracy"].set_xlabel("Epoch")
     axes["accuracy"].legend()
     axes["confusion"].imshow(matrix.numpy(), cmap="Blues")

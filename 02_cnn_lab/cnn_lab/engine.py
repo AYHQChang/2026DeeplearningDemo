@@ -45,6 +45,7 @@ class TrainingResult:
     test_accuracy: list[float]
     elapsed_seconds: float
     parameter_count: int
+    val_accuracy: list[float] | None = None
 
     @property
     def final_test_accuracy(self) -> float:
@@ -108,6 +109,8 @@ def train_experiment(
     seed_everything(config.seed)
     device = resolve_device(config.device)
     data = data or load_digits_data(seed=config.seed)
+    if (data.x_val is None) != (data.y_val is None):
+        raise ValueError("验证集图片和标签必须同时提供。")
     update_steps = estimate_update_steps(config, len(data.x_train))
     if update_steps > MAX_UPDATE_STEPS:
         raise ValueError(
@@ -142,6 +145,7 @@ def train_experiment(
     train_loss: list[float] = []
     train_accuracy: list[float] = []
     test_accuracy: list[float] = []
+    val_accuracy: list[float] | None = [] if data.x_val is not None else None
     if device.type == "cuda":
         torch.cuda.synchronize(device)
     start = time.perf_counter()
@@ -160,6 +164,12 @@ def train_experiment(
             total_examples += len(batch_x)
         train_loss.append(total_loss / total_examples)
         train_accuracy.append(_accuracy(model, data.x_train, data.y_train, device))
+        if val_accuracy is not None:
+            val_accuracy.append(_accuracy(model, data.x_val, data.y_val, device))
+        else:
+            test_accuracy.append(_accuracy(model, data.x_test, data.y_test, device))
+
+    if val_accuracy is not None:
         test_accuracy.append(_accuracy(model, data.x_test, data.y_test, device))
 
     if device.type == "cuda":
@@ -173,6 +183,7 @@ def train_experiment(
         test_accuracy=test_accuracy,
         elapsed_seconds=time.perf_counter() - start,
         parameter_count=parameter_count,
+        val_accuracy=val_accuracy,
     )
 
 

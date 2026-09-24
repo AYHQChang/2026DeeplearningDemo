@@ -5,3 +5,6 @@ outputs/
 logs/
 "深度学习课堂 Demo 实施方案.md"
 我的作业_*.ipynb
+
+# 课程图片包解压后的工作目录
+02_cnn_lab/data/fashion_small/
