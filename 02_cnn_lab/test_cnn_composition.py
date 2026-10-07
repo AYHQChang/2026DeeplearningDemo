@@ -25,6 +25,7 @@ from cnn_lab import (
     save_experiment_records, seed_everything, train_experiment, validate_config,
 )
 from cnn_lab import engine
+from cnn_lab.data import validate_image_dataset
 
 
 def expect_value_error(action, text: str = "") -> None:
@@ -256,6 +257,24 @@ def check_splits_and_records(selected) -> None:
         assert csv_rows[1]["structure"] == records[1]["structure"]
 
 
+
+def check_manual_dataset_validation() -> None:
+    # 同一接口接受两类/三类和不同尺寸，不锁定Fashion或自动计分。
+    for size, classes in ((8, 2), (28, 3), (16, 4)):
+        data = toy_data(image_size=size, classes=classes)
+        summary = validate_image_dataset(data)
+        assert summary["image_size"] == size and len(summary["classes"]) == classes
+        assert len(summary["splits"]["train"]["count_per_class"]) == classes
+    data = toy_data()
+    expect_value_error(lambda: validate_image_dataset(replace(data, x_val=None)), "val")
+    expect_value_error(lambda: validate_image_dataset(replace(data, y_val=data.y_val[:-1])), "一一对应")
+    expect_value_error(lambda: validate_image_dataset(replace(data, x_train=data.x_train.double())), "float32")
+    expect_value_error(lambda: validate_image_dataset(replace(data, x_train=data.x_train * 255)), "归一化")
+    expect_value_error(lambda: validate_image_dataset(replace(data, y_train=torch.zeros_like(data.y_train))), "每类")
+    expect_value_error(lambda: validate_image_dataset(replace(data, x_val=data.x_val[:, :, :16, :16])), "尺寸")
+    expect_value_error(lambda: validate_image_dataset(replace(data, class_names=("same", "same", "other"))), "类别名")
+
+
 def main() -> None:
     seed_everything(23)
     check_structure_combinations()
@@ -263,6 +282,7 @@ def main() -> None:
     check_custom_model_and_budgets()
     check_small_class_visuals_and_data_entry()
     check_splits_and_records(selected)
+    check_manual_dataset_validation()
     plt.close("all")
     print("CNN composition and dataset migration checks passed.")
 

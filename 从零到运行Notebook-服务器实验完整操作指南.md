@@ -413,7 +413,7 @@ print("PyTorch：", torch.__version__)
 print(torch.tensor([1, 2]) * 2)
 ```
 
-确认主机、环境路径及工作目录正确，再从第一格向下运行。首次体验可以 `Run All`；有“先选择方案再最终测试”的练习，应按 Notebook 中的步骤操作。
+确认主机、环境路径及工作目录正确，再从第一格向下运行。首次体验可以 `Run All`；有“先选择方案再最终测试”的练习，应按 Notebook 中的步骤操作。CNN 第07份是学生数据接入练习，初始含未填写的 TODO，直接 `Run All` 会按设计停止；逐步补全并通过数据检查后再继续，不把此提示当成环境故障。
 
 若列表没有 `dl2026`，先确认远端 Python/Jupyter 扩展、`conda env list` 和 `python -c "import ipykernel"`。重载窗口后仍无法发现时，可以在已激活的环境里手动注册一次：
 

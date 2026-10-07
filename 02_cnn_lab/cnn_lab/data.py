@@ -98,3 +98,37 @@ def load_digits_data(seed: int = 42, test_size: float = 0.25, val_size: float = 
         x_val=torch.from_numpy(images[val_indices]) if val_indices is not None else None,
         y_val=torch.from_numpy(labels[val_indices]) if val_indices is not None else None,
     )
+
+
+def validate_image_dataset(data: ImageDatasetBundle) -> dict:
+    """检查学生手动接入的数据，并返回形状/类别摘要；不负责加载图片。"""
+    if not isinstance(data, ImageDatasetBundle):
+        raise ValueError("请先用自己读取的张量组装 ImageDatasetBundle。")
+    names = data.class_names
+    if len(names) < 2 or len(set(names)) != len(names) or any(not isinstance(n, str) or not n for n in names):
+        raise ValueError("class_names 至少包含两个互不重复的非空类别名。")
+    if data.pixel_range != (0.0, 1.0):
+        raise ValueError("图片需归一化到 0–1，并将 pixel_range 记录为 (0.0, 1.0)。")
+    size = None
+    summary = {}
+    for split in ("train", "val", "test"):
+        x, y = getattr(data, f"x_{split}"), getattr(data, f"y_{split}")
+        if not isinstance(x, torch.Tensor) or not isinstance(y, torch.Tensor):
+            raise ValueError(f"{split} 需要图片张量和标签张量，请完成接入 TODO。")
+        if x.ndim != 4 or x.shape[0] == 0 or x.shape[1] != 1 or x.shape[2] != x.shape[3] or x.shape[2] < 1:
+            raise ValueError(f"{split} 图片应为非空的 [N,1,H,H] 灰度张量。")
+        if y.ndim != 1 or len(y) != len(x):
+            raise ValueError(f"{split} 标签需要 [N]，并与图片一一对应。")
+        if size is None:
+            size = int(x.shape[2])
+        elif x.shape[2] != size:
+            raise ValueError("train/val/test 的图片尺寸必须一致。")
+        if x.dtype != torch.float32 or y.dtype != torch.long:
+            raise ValueError(f"{split} 图片需要 float32，交叉熵标签需要 torch.long。")
+        if not bool(torch.isfinite(x).all()) or bool((x < 0).any()) or bool((x > 1).any()):
+            raise ValueError(f"{split} 像素应为有限的 0–1 数值，请检查归一化。")
+        if set(y.detach().cpu().tolist()) != set(range(len(names))):
+            raise ValueError(f"{split} 标签必须从0连续编号，每类都要有样本，并沿用相同类别映射。")
+        counts = {name: int((y == label).sum().item()) for label, name in enumerate(names)}
+        summary[split] = {"shape": list(x.shape), "count_per_class": counts}
+    return {"dataset": data.dataset_name, "classes": list(names), "image_size": size, "splits": summary}
