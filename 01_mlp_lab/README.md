@@ -1,7 +1,6 @@
 # MLP 组件与决策边界实验室
 
-本实验按“先看到结果，再理解代码”的顺序组织。第一次进入时，只需要打开
-`00_一键体验.ipynb` 并点击 `Run All`。
+本实验按“先看到结果，再理解代码”的顺序组织。环境配置见[从零开始指南](../从零到运行Notebook-服务器实验完整操作指南.md)。在远程 VS Code 打开整个 `01_mlp_lab` 文件夹，从 `00_一键体验.ipynb` 复制个人 Notebook，选择课程内核后点击 `Run All`。
 
 ## 推荐顺序
 
@@ -55,12 +54,11 @@ python 01_mlp_lab/test_house_price_smoke.py
 项目在 `assets/fonts` 中附带开源字体 Noto Sans CJK SC。绘图函数会自动注册该字体，
 不需要在服务器中安装系统字体，也不需要修改每个账号的 Matplotlib 配置。
 
-如果更新项目前已经打开 Notebook，请先执行 `git pull`，然后重启 Notebook 内核并
-重新运行全部单元格。旧单元格中已经生成的方框图片不会自动刷新。
+如果更新项目前已经打开 Notebook，请先保存作业并按[安全更新步骤](../从零到运行Notebook-服务器实验完整操作指南.md#student-update)更新项目，然后重启内核并重新运行全部单元格。旧单元格中已经生成的方框图片不会自动刷新。
 
 ## 最短启动流程
 
-1. 在 VS Code 中打开 `00_一键体验.ipynb`；
+1. 在远程 VS Code 中打开整个 `01_mlp_lab` 文件夹，从 `00_一键体验.ipynb` 复制并打开个人 Notebook；
 2. 选择课程使用的 Python 内核；
 3. 点击 `Run All`；
 4. 看到结果表、训练阶段图和最终诊断图后，再进入下一份 notebook。
@@ -81,7 +79,6 @@ Notebook 默认使用 `device="cpu"`，适合多人共享服务器。只有获�
 | `core.py` | 兼容旧脚本的导入入口 | 不需要阅读 |
 | `demo.py` | VS Code / 终端命令行入口 | 可选 |
 | `data_and_task.py` | 数据与任务说明图 | 可选 |
-| `使用手册.md` | 参数、日志、绘图和命令速查 | 遇到问题时查询 |
 
 ## 最短代码
 
@@ -99,12 +96,37 @@ from mlp_lab import compare
 results = compare("activation")
 ```
 
-## 命令行入口
+## 命令行入口、参数与结果保存
+
+以下命令在 `01_mlp_lab` 目录、已激活的课程环境中执行。先运行基线，再选一个因素比较：
 
 ```bash
 python demo.py --device cpu --mode fast --experiment baseline
 python demo.py --device cpu --mode fast --experiment activation
+python demo.py --help
 ```
+
+| 想调整什么 | 参数示例 |
+|---|---|
+| 数据集 | `--dataset moons`、`circles` 或 `spiral` |
+| 层数和宽度 | `--hidden-sizes 32,32` |
+| 激活函数 | `--activation relu`、`tanh` 或 `sigmoid` |
+| 损失函数 | `--loss cross_entropy` 或 `mse` |
+| 优化器 | `--optimizer sgd`、`momentum` 或 `adam` |
+| 学习率、轮次、Dropout | `--learning-rate 0.02 --epochs 80 --dropout 0.1` |
+| 随机种子 | `--seed 42` |
+
+对比时保留基线，只修改一个因素；可用的 `--experiment` 类型及其他参数以 `python demo.py --help` 为准。
+
+在服务器终端运行时，可以直接保存图片，避免等待图形窗口：
+
+```bash
+python demo.py --device cpu --mode fast --experiment baseline --save-dir outputs --no-show
+```
+
+基线图片为 `outputs/01_training_story.png` 和 `outputs/02_final_diagnosis.png`。默认在本实验室的 `logs/` 写入每次实验的 JSON、TXT 记录及累计 `history.csv`；可用 `--log-dir` 指定目录，`--no-log` 关闭此次日志。日志用于保留配置、环境、指标和曲线，写报告时把数值与实际图形对应起来。
+
+`outputs/` 和 `logs/` 已被 Git 忽略，仍需自行备份。原长篇使用手册及练习笔记保存在[历史归档](../docs/archive/2026-10-07/README.md)，当前学习顺序和作业要求以本 README 为准。
 
 ## 最短检查
 

@@ -6,7 +6,7 @@
 
 这里的目标不是背代码，也不是只追求更高的 Accuracy，而是通过可以直接运行的 Notebook，真正看懂数据、模型、训练过程和实验对比。
 
-第一次接触完整代码项目？建议先阅读[《认识课程项目与工程化》](./0.%28补充材料%29认识课程项目与工程化.md)，用几分钟认识目录、资源、日志、缓存和 README。
+第一次使用课程服务器，请从[《从零到运行 Notebook：服务器实验完整操作指南》](./从零到运行Notebook-服务器实验完整操作指南.md)开始。连接、环境配置、运行与更新都在同一份指南中。
 
 ## 🎯 这个项目是做什么的？
 
@@ -61,7 +61,7 @@
 
 ### `02_cnn_lab`：CNN 与小型图像分类
 
-这是第二个已经完成并经过运行检查的实验室。核心实验使用离线的 `8×8` 手写数字，便于观察卷积核和特征图；第 07 份 Notebook 用离线 `28×28` 服饰图片练习从文件夹手动替换数据集。
+这是第二个已经完成并经过运行检查的实验室。核心实验使用离线的 `8×8` 手写数字，便于观察卷积核和特征图；第 05 份用 1–3 个可编辑卷积块组合自己的 CNN，第 07 份从图片文件夹手动接入离线 `28×28` 服饰数据，并沿用相同的网络组合与训练方式。两份探索练习先用验证集比较模型，选定后再执行最终测试。
 
 | 顺序 | Notebook | 你会看到什么 |
 |---:|---|---|
@@ -70,9 +70,11 @@
 | 2 | [02_卷积核与池化.ipynb](./02_cnn_lab/02_卷积核与池化.ipynb) | 卷积核响应、最大池化和平均池化 |
 | 3 | [03_训练第一个CNN.ipynb](./02_cnn_lab/03_训练第一个CNN.ipynb) | Loss、Accuracy、混淆矩阵、错误样本与特征图 |
 | 4 | [04_CNN组件对比实验.ipynb](./02_cnn_lab/04_CNN组件对比实验.ipynb) | 不同池化方式的单变量对比 |
-| 5 | [05_自主修改练习.ipynb](./02_cnn_lab/05_自主修改练习.ipynb) | 修改卷积通道数，并与基线结果比较 |
+| 5 | [05_自主修改练习.ipynb](./02_cnn_lab/05_自主修改练习.ipynb) | 组合卷积块，保留基线、结构、训练与组合四组实验 |
 | 6 | [06_CNN识别侦探项目.ipynb](./02_cnn_lab/06_CNN识别侦探项目.ipynb) | 四小时综合取证、代码修改与预算挑战 |
-| 7 | [07_手动替换图片数据集.ipynb](./02_cnn_lab/07_手动替换图片数据集.ipynb) | 自己读取图片、映射标签并接入现有 CNN |
+| 7 | [07_手动替换图片数据集.ipynb](./02_cnn_lab/07_手动替换图片数据集.ipynb) | 手动读取服饰图片，在新数据上组合网络、验证比较与最终测试 |
+
+课程作业在第 05 份数字网络设计与第 07 份 Fashion 数据迁移中**任选一条路线**，只提交所选路线的一份 Word 实验报告。另一条可自行探索，06 为进阶选做。
 
 更详细的 CNN 使用说明见 [02_cnn_lab/README.md](./02_cnn_lab/README.md)。
 
@@ -155,52 +157,14 @@ python device_speed_demo.py --lab transformer --devices cpu,cuda:0 --preview-epo
 
 ## 🚀 最快开始方式
 
-### 第一步：获取项目
+首次使用课程服务器，按[统一操作指南](./从零到运行Notebook-服务器实验完整操作指南.md)完成连接、个人副本克隆和环境配置。课程服务器使用教师公布的公共仓库作为学生更新来源。
 
-```bash
-git clone https://github.com/AYHQChang/2026DeeplearningDemo.git
-cd 2026DeeplearningDemo
-```
+已经配置好时：
 
-### 第二步：进入课程环境并检查
-
-Windows 个人笔记本第一次配置时，先阅读 [Windows 个人笔记本：PyTorch 与课程依赖安装指南](./5.Windows个人笔记本PyTorch与课程依赖安装.md)，并运行只读预检：
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\check_windows_environment.ps1"
-```
-
-预检只报告电脑、Conda、Python、PyTorch 和 NVIDIA 驱动状态，不会自动安装或修改系统。根据指南选择 CPU 或 NVIDIA CUDA 路线后，再执行下面的统一验收。
-
-```bash
-conda activate dl2026
-python check_environment.py
-python 01_mlp_lab/test_mlp_smoke.py
-python 01_mlp_lab/test_house_price_smoke.py
-python 02_cnn_lab/test_cnn_smoke.py
-python 03_rnn_lab/test_rnn_smoke.py
-python 04_transformer_lab/test_transformer_smoke.py
-python test_device_speed_demo.py
-```
-
-看到以下内容，说明基本环境、四个实验室和统一速度入口可以运行：
-
-```text
-环境自检通过，可以离线运行课堂 Demo。
-MLP smoke test passed.
-House price smoke test passed.
-CNN smoke test passed.
-RNN smoke test passed.
-Transformer smoke test passed.
-Device speed demo smoke test passed.
-```
-
-### 第三步：打开第一份 Notebook
-
-1. 在 VS Code 中打开 `01_mlp_lab/00_一键体验.ipynb`；
-2. 选择 `dl2026` Python 内核；
-3. 点击 `Run All`；
-4. 先观察结果表和图片，再继续打开下一份 Notebook。
+1. 用 VS Code 连接服务器，保存上次作业并停止旧内核。
+2. 按[安全更新步骤](./从零到运行Notebook-服务器实验完整操作指南.md#student-update)更新个人课程副本。
+3. 打开当前实验室文件夹，例如 `01_mlp_lab`，从官方 Notebook 复制个人作业。
+4. 选择 `dl2026` 内核，按 Notebook 的顺序运行。
 
 核心实验运行时不需要下载数据或模型，配置完成后可以离线使用。
 
@@ -217,36 +181,26 @@ Device speed demo smoke test passed.
 后续实验室会继续采用“基础六步 + 综合项目”的路线：先快速看到结果，再理解数据、
 训练规则和训练过程，随后完成组件对比、自主修改与证据报告。
 
-## 📚 第一次配置？按设备选择
+## 📚 操作指南
 
-第一次上代码课，先阅读[实验室电脑与个人笔记本两条准备路线](./1.2%28补充材料%29第一次代码课软件准备-实验室电脑与个人笔记本.md)，不要把两种电脑的步骤混在一起。
+服务器相关操作只维护[《从零到运行 Notebook：服务器实验完整操作指南》](./从零到运行Notebook-服务器实验完整操作指南.md)。
 
-### Windows 个人笔记本
+| 任务 | 直接进入 |
+|---|---|
+| 第一次连接服务器 | [准备与 SSH 连接](./从零到运行Notebook-服务器实验完整操作指南.md#connect) |
+| 配置 Conda、PyTorch 与 Notebook 内核 | [环境搭建](./从零到运行Notebook-服务器实验完整操作指南.md#conda) |
+| 保存个人作业、更新课程代码 | [学生日常操作](./从零到运行Notebook-服务器实验完整操作指南.md#student-update) |
+| 空间不足、删除多余环境、重装 | [环境清理与恢复](./从零到运行Notebook-服务器实验完整操作指南.md#recovery) |
+| 教师维护服务器代码并发布给学生 | [教师维护与发布](./从零到运行Notebook-服务器实验完整操作指南.md#teacher) |
 
-1. [Windows 笔记本安装与配置 Miniconda](./1.3%28补充材料%29Windows笔记本安装与配置Miniconda.md)
-2. [Windows 笔记本安装与配置 Git](./1.4%28补充材料%29Windows笔记本安装与配置Git.md)
-3. [Windows 个人笔记本：PyTorch 与课程依赖安装指南](./5.Windows个人笔记本PyTorch与课程依赖安装.md)
-4. [只读 Windows 环境预检脚本](./check_windows_environment.ps1)
+公开文档使用服务器地址、端口、账号和公共目录占位符，实际信息以课堂说明为准。原来的独立笔记、Windows 本地安装补充资料已放入[历史归档](./docs/archive/2026-10-07/README.md)。
 
-CPU 是所有 Windows 电脑的保底路线；只有 `nvidia-smi` 正常的 NVIDIA 电脑才选择 CUDA wheel。AMD / Intel 显卡在本课程的 Windows 标准路线中使用 CPU。
+## 📁 文档如何分工
 
-### Linux 课程服务器
-
-1. [VS Code Remote-SSH 连接 Linux 服务器与失败排查](./1.1%28补充材料%29VSCode%20Remote-SSH连接Linux服务器与失败排查.md)
-2. [Linux 服务器课程项目的发布与更新](./2.1%28补充材料%29Linux服务器课程项目的发布与更新.md)
-3. [保存个人实验并安全更新课程代码](./2.2%28补充材料%29保存个人实验并安全更新课程代码.md)
-4. [Linux 服务器 Conda 与 PyTorch 安装](./3.Linux服务器Conda与PyTorch安装.md)
-5. [Linux 与 Conda 常用命令](./4.Linux与Conda常用命令.md)
-
-公开文档中的服务器 IP、端口和登录信息使用占位符，实际连接信息以课堂说明为准。Windows 安装命令是带核对日期的课程快照；PyTorch 版本发生变化时，以指南链接的官方选择器为准。
-
-## 📁 为什么项目里有两份 README？
-
-- 根目录的 [README.md](./README.md)：GitHub 仓库首页，介绍整个课程项目、学习路线和建设计划；
-- [01_mlp_lab/README.md](./01_mlp_lab/README.md)：MLP 子项目说明，介绍七份核心 Notebook、代码结构和具体运行方法；
-- [02_cnn_lab/README.md](./02_cnn_lab/README.md)、[03_rnn_lab/README.md](./03_rnn_lab/README.md) 和 [04_transformer_lab/README.md](./04_transformer_lab/README.md)：分别提供 CNN、RNN 与 Transformer 实验室的具体入口。
-
-每个已完成的实验室都有自己的 README。根目录 README 负责“带你找到方向”，子目录 README 负责“带你完成这个实验”。
+- 根目录 README：介绍课程项目、学习路线和实验入口。
+- [MLP README](./01_mlp_lab/README.md)、[CNN README](./02_cnn_lab/README.md)、[RNN README](./03_rnn_lab/README.md)、[Transformer README](./04_transformer_lab/README.md)：说明对应实验的内容、运行方式和作业要求。
+- [从零开始指南](./从零到运行Notebook-服务器实验完整操作指南.md)：集中维护服务器连接、环境、更新和教师发布流程。
+- [归档索引](./docs/archive/2026-10-07/README.md)：保留历史笔记，不作为当前操作入口。
 
 ## 💡 一个小建议
 

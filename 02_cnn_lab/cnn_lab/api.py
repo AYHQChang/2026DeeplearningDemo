@@ -4,15 +4,18 @@ from dataclasses import replace
 import math
 
 import matplotlib.pyplot as plt
+from torch import nn
 
 from .data import ImageDatasetBundle, load_digits_data
 from .engine import (
     TrainingResult,
     base_config,
     compare_pooling_experiments,
+    evaluation_data,
     shifted_accuracy,
     train_experiment,
 )
+from .model import ConvBlock
 from .plots import (
     plot_convolution_demo,
     plot_digit_gallery,
@@ -43,13 +46,18 @@ def challenge_report(
     if parameter_budget <= 0 or update_budget <= 0:
         raise ValueError("parameter_budget 和 update_budget 必须大于 0。")
 
+    _, _, evaluation_label = evaluation_data(result)
+    accuracy = (
+        result.final_test_accuracy if result.test_accuracy
+        else result.final_validation_accuracy
+    )
     shifted = shifted_accuracy(result)
     update_steps = (
         math.ceil(len(result.data.x_train) / result.config.batch_size)
         * result.config.epochs
     )
     checks = {
-        "accuracy_badge": result.final_test_accuracy >= accuracy_target,
+        "accuracy_badge": accuracy >= accuracy_target,
         "shift_badge": shifted >= shifted_target,
         "parameter_badge": result.parameter_count <= parameter_budget,
         "update_badge": update_steps <= update_budget,
@@ -58,7 +66,7 @@ def challenge_report(
     print("\nCNN 闯关计分")
     print(
         f"{'🏅' if checks['accuracy_badge'] else '○'} 识别："
-        f"{result.final_test_accuracy:.1%}（目标 ≥ {accuracy_target:.1%}）"
+        f"{accuracy:.1%}（{evaluation_label}集，目标 ≥ {accuracy_target:.1%}）"
     )
     print(
         f"{'🏅' if checks['shift_badge'] else '○'} 平移："
@@ -76,7 +84,7 @@ def challenge_report(
     return {
         **checks,
         "badges": badges,
-        "accuracy": result.final_test_accuracy,
+        "accuracy": accuracy,
         "shifted_accuracy": shifted,
         "parameters": result.parameter_count,
         "update_steps": update_steps,
@@ -108,10 +116,23 @@ def quick_demo(
     seed: int = 42,
     device: str = "cpu",
     show_features: bool = True,
+    data: ImageDatasetBundle | None = None,
+    blocks: tuple[ConvBlock, ...] | None = None,
+    model: nn.Module | None = None,
+    evaluate_test: bool = True,
+    batch_size: int = 64,
 ) -> TrainingResult:
+    """共用数字与自定义图片数据；blocks 或 model 可替换网络结构。"""
+
+    if model is not None:
+        name = f"自定义 CNN｜{type(model).__name__}"
+    elif blocks is not None:
+        name = f"组合 CNN｜{len(blocks)} 个卷积块"
+    else:
+        name = f"CNN｜{activation}｜通道 {'→'.join(map(str, channels))}｜{pooling} pooling"
     config = replace(
         base_config(seed=seed, device=device),
-        name=f"CNN｜{activation}｜通道 {channels[0]}→{channels[1]}｜{pooling} pooling",
+        name=name,
         channels=channels,
         kernel_size=kernel_size,
         pooling=pooling,
@@ -119,12 +140,17 @@ def quick_demo(
         dropout=dropout,
         learning_rate=learning_rate,
         epochs=epochs,
+        batch_size=batch_size,
+        blocks=blocks,
     )
-    result = train_experiment(config)
+    result = train_experiment(config, data=data, model=model, evaluate_test=evaluate_test)
     print_result_table([result])
     plot_training_overview(result)
     if show_features:
-        plot_feature_maps(result)
+        if callable(getattr(result.model, "feature_maps", None)):
+            plot_feature_maps(result)
+        else:
+            print("这个自定义模型没有 feature_maps()，已跳过特征图。训练曲线、预测与混淆矩阵仍可查看。")
     _show()
     return result
 
@@ -134,9 +160,18 @@ def compare_pooling(
     epochs: int = 12,
     seed: int = 42,
     device: str = "cpu",
+    data: ImageDatasetBundle | None = None,
+    blocks: tuple[ConvBlock, ...] | None = None,
+    evaluate_test: bool = True,
+    batch_size: int = 64,
 ) -> list[TrainingResult]:
-    base = replace(base_config(seed=seed, device=device), channels=channels, epochs=epochs)
-    results = compare_pooling_experiments(base)
+    """只更换第一个卷积块后的池化，其余结构与数据保持一致。"""
+
+    base = replace(
+        base_config(seed=seed, device=device),
+        channels=channels, epochs=epochs, blocks=blocks, batch_size=batch_size,
+    )
+    results = compare_pooling_experiments(base, data=data, evaluate_test=evaluate_test)
     print_result_table(results)
     plot_pooling_comparison(results)
     _show()

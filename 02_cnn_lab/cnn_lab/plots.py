@@ -11,7 +11,7 @@ import torch
 from torch.nn import functional as F
 
 from .data import ImageDatasetBundle
-from .engine import TrainingResult, shifted_accuracy
+from .engine import TrainingResult, evaluation_data, shifted_accuracy
 
 
 BUNDLED_CJK_FONT = (
@@ -49,20 +49,48 @@ def configure_chinese_font() -> str:
 
 
 def _image(tensor: torch.Tensor) -> np.ndarray:
-    return tensor.detach().cpu().squeeze().numpy()
+    values = tensor.detach().cpu()
+    if values.ndim == 4 and len(values) == 1:
+        values = values[0]
+    if values.ndim == 3:
+        if values.shape[0] == 1:
+            values = values[0]
+        elif values.shape[0] == 3:
+            values = values.permute(1, 2, 0)
+    return values.numpy()
+
+
+def _class_name(data: ImageDatasetBundle, label: int) -> str:
+    return str(data.class_names[int(label)])
 
 
 def plot_digit_gallery(data: ImageDatasetBundle) -> plt.Figure:
-    """每个类别展示一张图片，先建立任务直觉。"""
+    """每个类别展示一张图片；函数名保留以兼容数字实验。"""
 
     configure_chinese_font()
-    fig, axes = plt.subplots(2, 5, figsize=(11, 4.8), constrained_layout=True)
+    columns = min(5, data.n_classes)
+    rows = int(np.ceil(data.n_classes / columns))
+    fig, axes = plt.subplots(
+        rows, columns, figsize=(2.2 * columns, 2.5 * rows),
+        constrained_layout=True, squeeze=False,
+    )
     for label, axis in enumerate(axes.ravel()):
-        index = int(torch.where(data.y_train == label)[0][0])
-        axis.imshow(_image(data.x_train[index]), cmap="gray_r", vmin=0, vmax=1)
-        axis.set_title(f"标签 {label}")
         axis.axis("off")
-    fig.suptitle(f"离线手写数字：{len(data.x_train) + len(data.x_test)} 张 {data.image_size}×{data.image_size} 灰度图", fontsize=15)
+        if label >= data.n_classes:
+            continue
+        indices = torch.where(data.y_train == label)[0]
+        if len(indices):
+            axis.imshow(_image(data.x_train[int(indices[0])]), cmap="gray_r", vmin=0, vmax=1)
+        else:
+            axis.text(0.5, 0.5, "训练集中没有样本", ha="center", va="center")
+        axis.set_title(f"{_class_name(data, label)}｜标签 {label}")
+    total = len(data.x_train) + len(data.x_test)
+    if data.x_val is not None:
+        total += len(data.x_val)
+    fig.suptitle(
+        f"{data.dataset_name}：{data.n_classes} 类，共 {total} 张 "
+        f"{data.image_size}×{data.image_size} 图片", fontsize=15,
+    )
     return fig
 
 
@@ -74,10 +102,10 @@ def plot_pixel_and_shape(data: ImageDatasetBundle, index: int = 0) -> plt.Figure
     label = int(data.y_train[index])
     fig, axes = plt.subplots(1, 3, figsize=(14, 4.6), constrained_layout=True)
     axes[0].imshow(image, cmap="gray_r", vmin=0, vmax=1)
-    axes[0].set_title(f"人眼看到的数字｜标签 {label}")
+    axes[0].set_title(f"人眼看到的图片｜{_class_name(data, label)}（标签 {label}）")
     axes[0].axis("off")
     axes[1].imshow(image, cmap="Blues", vmin=0, vmax=1)
-    if data.image_size <= 10:
+    if data.image_size <= 10 and image.ndim == 2:
         for row in range(data.image_size):
             for column in range(data.image_size):
                 axes[1].text(column, row, f"{image[row, column]:.1f}", ha="center", va="center", fontsize=7)
@@ -91,9 +119,9 @@ def plot_pixel_and_shape(data: ImageDatasetBundle, index: int = 0) -> plt.Figure
         f"[H, W] = [{data.image_size}, {data.image_size}]\n\n"
         "加入通道\n"
         f"[C, H, W] = [{data.channels}, {data.image_size}, {data.image_size}]\n\n"
-        "组成 Batch\n"
+        "组成 Batch（以 B=64 为例）\n"
         f"[B, C, H, W] = [64, {data.channels}, {data.image_size}, {data.image_size}]\n\n"
-        "以后换成 28×28 时，只改变 H、W。",
+        f"分类输出 [B, K] 中，K = {data.n_classes}。",
         va="top", fontsize=13, linespacing=1.45,
     )
     axes[2].set_title("Tensor shape：每一维代表什么？")
@@ -158,11 +186,12 @@ def plot_pooling_demo(data: ImageDatasetBundle, index: int = 0) -> plt.Figure:
     return fig
 
 
-def _predictions(result: TrainingResult) -> tuple[torch.Tensor, torch.Tensor]:
+def _predictions(result: TrainingResult, split: str = "auto") -> tuple[torch.Tensor, torch.Tensor]:
+    images, _, _ = evaluation_data(result, split=split)
     device = next(result.model.parameters()).device
     result.model.eval()
     with torch.no_grad():
-        probabilities = torch.softmax(result.model(result.data.x_test.to(device)), dim=1).cpu()
+        probabilities = torch.softmax(result.model(images.to(device)), dim=1).cpu()
     return probabilities.argmax(dim=1), probabilities
 
 
@@ -176,16 +205,32 @@ def _plot_sample_strip(axis: plt.Axes, images: torch.Tensor, labels: list[str], 
     width = images.shape[-1]
     for boundary in range(1, len(images)):
         axis.axvline(boundary * width - 0.5, color="#2563EB", linewidth=1)
-    axis.set_title(title + "\n" + "｜".join(labels), fontsize=10)
-    axis.axis("off")
+    axis.set_title(title, fontsize=10)
+    centers = np.arange(len(images)) * width + (width - 1) / 2
+    descriptions = [label.replace("真", "真实", 1).replace("/预测", "\n预测") for label in labels]
+    axis.set_xticks(centers, descriptions, fontsize=8)
+    axis.tick_params(axis="x", length=0, pad=5)
+    axis.set_yticks([])
+    for spine in axis.spines.values():
+        spine.set_visible(False)
 
 
-def plot_training_overview(result: TrainingResult) -> plt.Figure:
-    """用训练曲线、混淆矩阵和样本证据回答模型学得怎样。"""
+def _plot_accuracy_curve(axis: plt.Axes, result: TrainingResult, *, split: str, label: str) -> None:
+    curve = result.val_accuracy if split == "val" else result.test_accuracy
+    if curve is None or not curve:
+        return
+    if len(curve) == 1 and result.config.epochs > 1:
+        axis.scatter([result.config.epochs], curve, label=label)
+    else:
+        axis.plot(range(1, len(curve) + 1), curve, label=label)
+
+
+def plot_training_overview(result: TrainingResult, split: str = "auto") -> plt.Figure:
+    """探索时看验证集；最终测试后可查看测试集诊断。"""
 
     configure_chinese_font()
-    predictions, probabilities = _predictions(result)
-    truth = result.data.y_test
+    images, truth, evaluation_label = evaluation_data(result, split=split)
+    predictions, probabilities = _predictions(result, split=split)
     matrix = torch.zeros(result.data.n_classes, result.data.n_classes, dtype=torch.int64)
     for expected, predicted in zip(truth, predictions):
         matrix[int(expected), int(predicted)] += 1
@@ -195,45 +240,54 @@ def plot_training_overview(result: TrainingResult) -> plt.Figure:
         [["loss", "accuracy", "confusion"], ["correct", "errors", "info"]],
         figsize=(16, 8.5), constrained_layout=True,
     )
-    epochs = np.arange(1, result.config.epochs + 1)
+    epochs = np.arange(1, len(result.train_loss) + 1)
     axes["loss"].plot(epochs, result.train_loss, color="#7C3AED")
     axes["loss"].set_title("Loss：优化过程是否稳定？")
     axes["loss"].set_xlabel("Epoch")
     axes["loss"].set_ylabel("Cross-Entropy")
-    axes["accuracy"].plot(epochs, result.train_accuracy, color="#2563EB", label="训练")
-    evaluation_curve = result.val_accuracy if result.val_accuracy is not None else result.test_accuracy
-    evaluation_label = "验证" if result.val_accuracy is not None else "测试"
-    axes["accuracy"].plot(epochs, evaluation_curve, color="#DC2626", linestyle="--", label=evaluation_label)
+    axes["accuracy"].plot(range(1, len(result.train_accuracy) + 1), result.train_accuracy, color="#2563EB", label="训练")
+    curve_split = "val" if result.val_accuracy is not None else "test"
+    curve_label = "验证" if curve_split == "val" else "测试"
+    _plot_accuracy_curve(axes["accuracy"], result, split=curve_split, label=curve_label)
+    if curve_split == "val" and result.test_accuracy:
+        axes["accuracy"].scatter([result.config.epochs], [result.final_test_accuracy], color="#059669", label="最终测试")
     axes["accuracy"].set_ylim(0, 1.02)
-    axes["accuracy"].set_title(f"Accuracy：训练与{evaluation_label}差距")
+    axes["accuracy"].set_title(f"Accuracy：训练与{curve_label}差距")
     axes["accuracy"].set_xlabel("Epoch")
     axes["accuracy"].legend()
     axes["confusion"].imshow(matrix.numpy(), cmap="Blues")
-    axes["confusion"].set_title("混淆矩阵：哪些类别容易混淆？")
-    axes["confusion"].set_xlabel("预测标签")
-    axes["confusion"].set_ylabel("真实标签")
-    axes["confusion"].set_xticks(range(result.data.n_classes))
-    axes["confusion"].set_yticks(range(result.data.n_classes))
-    _plot_sample_strip(
-        axes["correct"], result.data.x_test[correct],
-        [f"真{int(truth[i])}/预测{int(predictions[i])}" for i in correct], "正确样本",
-    )
-    _plot_sample_strip(
-        axes["errors"], result.data.x_test[wrong],
-        [f"真{int(truth[i])}/预测{int(predictions[i])}" for i in wrong], "错误样本",
-    )
+    axes["confusion"].set_title(f"{evaluation_label}混淆矩阵：哪些类别容易混淆？")
+    axes["confusion"].set_xlabel("预测类别")
+    axes["confusion"].set_ylabel("真实类别")
+    positions = range(result.data.n_classes)
+    axes["confusion"].set_xticks(positions, result.data.class_names, rotation=45, ha="right")
+    axes["confusion"].set_yticks(positions, result.data.class_names)
+    sample_labels = lambda indices: [
+        f"真{_class_name(result.data, int(truth[i]))}/预测{_class_name(result.data, int(predictions[i]))}"
+        for i in indices
+    ]
+    _plot_sample_strip(axes["correct"], images[correct], sample_labels(correct), f"{evaluation_label}正确样本")
+    _plot_sample_strip(axes["errors"], images[wrong], sample_labels(wrong), f"{evaluation_label}错误样本")
     sample_index = int(wrong[0]) if len(wrong) else 0
-    top_values, top_indices = probabilities[sample_index].topk(3)
+    top_k = min(3, result.data.n_classes)
+    top_values, top_indices = probabilities[sample_index].topk(top_k)
+    accuracy = float((predictions == truth).float().mean())
+    test_note = ""
+    if not result.test_accuracy:
+        test_note = "测试集尚未评估；确定模型后再执行最终测试。\n\n"
     axes["info"].axis("off")
     axes["info"].text(
         0.03, 0.95,
         f"实验卡\n配置：{result.config.name}\n"
+        f"数据：{result.data.dataset_name}（{result.data.n_classes} 类）\n"
         f"参数量：{result.parameter_count:,}\n训练耗时：{result.elapsed_seconds:.2f} 秒\n"
-        f"测试准确率：{result.final_test_accuracy:.1%}\n右移 1 像素：{shifted_accuracy(result):.1%}\n\n"
-        f"示例真实标签：{int(truth[sample_index])}\n"
-        + "Top-3：\n"
-        + "\n".join(f"数字 {int(label)}：{float(value):.1%}" for value, label in zip(top_values, top_indices)),
-        va="top", fontsize=12, linespacing=1.35,
+        f"{evaluation_label}准确率：{accuracy:.1%}\n"
+        f"{evaluation_label}右移 1 像素：{shifted_accuracy(result, split=split):.1%}\n\n"
+        + test_note
+        + f"示例真实类别：{_class_name(result.data, int(truth[sample_index]))}\n"
+        + f"Top-{top_k}：\n"
+        + "\n".join(f"{_class_name(result.data, int(label))}：{float(value):.1%}" for value, label in zip(top_values, top_indices)),
+        va="top", fontsize=11, linespacing=1.35,
     )
     for key in ("loss", "accuracy"):
         axes[key].grid(alpha=0.2)
@@ -241,67 +295,104 @@ def plot_training_overview(result: TrainingResult) -> plt.Figure:
     return fig
 
 
-def plot_feature_maps(result: TrainingResult, sample_index: int = 0, max_channels: int = 8) -> plt.Figure:
-    """展示同一图片在两层卷积后的多个通道响应。"""
+def plot_feature_maps(
+    result: TrainingResult, sample_index: int = 0, max_channels: int = 8,
+    split: str = "auto",
+) -> plt.Figure:
+    """按模型返回的顺序展示特征图，支持不同数量的卷积块。"""
 
+    if max_channels <= 0:
+        raise ValueError("max_channels 必须大于 0。")
+    feature_maps = getattr(result.model, "feature_maps", None)
+    if not callable(feature_maps):
+        raise ValueError("这个自定义模型没有 feature_maps()；请使用 show_features=False，或在模型中返回各层特征图。")
     configure_chinese_font()
+    images, truth, evaluation_label = evaluation_data(result, split=split)
+    if not 0 <= sample_index < len(images):
+        raise IndexError(f"sample_index 必须在 0 到 {len(images) - 1} 之间。")
     device = next(result.model.parameters()).device
-    sample = result.data.x_test[sample_index:sample_index + 1].to(device)
+    sample = images[sample_index:sample_index + 1].to(device)
     result.model.eval()
     with torch.no_grad():
-        maps = result.model.feature_maps(sample)
+        maps = feature_maps(sample)
         prediction = int(result.model(sample).argmax(dim=1).item())
-    first = maps["第一层卷积"][0].cpu()
-    second = maps["第二层卷积"][0].cpu()
-    columns = max_channels + 1
-    fig, axes = plt.subplots(2, columns, figsize=(2.0 * columns, 4.8), constrained_layout=True)
-    axes[0, 0].imshow(_image(sample), cmap="gray_r", vmin=0, vmax=1)
-    axes[0, 0].set_title(f"输入\n真{int(result.data.y_test[sample_index])}/预测{prediction}")
-    axes[1, 0].axis("off")
-    axes[1, 0].text(0.5, 0.5, "每一列是一个通道\n不是一张新的原图", ha="center", va="center", fontsize=10)
-    for column in range(max_channels):
-        for row, tensor, name in ((0, first, "Conv1"), (1, second, "Conv2")):
-            axis = axes[row, column + 1]
-            if column < len(tensor):
-                axis.imshow(_image(tensor[column]), cmap="magma")
-                axis.set_title(f"{name}\n通道 {column}")
+    if not isinstance(maps, dict) or not maps:
+        raise ValueError("feature_maps() 应返回非空字典：层名 -> [B, C, H, W] Tensor。")
+    tensors = []
+    for name, tensor in maps.items():
+        if not isinstance(tensor, torch.Tensor) or tensor.ndim != 4 or len(tensor) != 1:
+            raise ValueError(f"特征图 {name} 应为 [1, C, H, W] Tensor。")
+        tensors.append((str(name), tensor[0].cpu()))
+    rows = len(tensors)
+    shown_channels = min(max_channels, max(len(tensor) for _, tensor in tensors))
+    columns = shown_channels + 1
+    fig, axes = plt.subplots(rows, columns, figsize=(2.0 * columns, 2.4 * rows), constrained_layout=True, squeeze=False)
+    for row, (name, tensor) in enumerate(tensors):
+        if row == 0:
+            axes[row, 0].imshow(_image(sample), cmap="gray_r", vmin=0, vmax=1)
+            axes[row, 0].set_title(
+                f"{evaluation_label}输入\n真{_class_name(result.data, int(truth[sample_index]))}"
+                f"/预测{_class_name(result.data, prediction)}", fontsize=10,
+            )
+        else:
+            axes[row, 0].text(0.5, 0.5, f"{name}\nC×H×W\n{tuple(tensor.shape)}", ha="center", va="center", fontsize=10)
+        axes[row, 0].axis("off")
+        for channel in range(shown_channels):
+            axis = axes[row, channel + 1]
+            if channel < len(tensor):
+                axis.imshow(_image(tensor[channel]), cmap="magma")
+                axis.set_title(f"{name}\n通道 {channel}", fontsize=10)
             axis.axis("off")
-    fig.suptitle("Feature maps：同一层的不同卷积核产生不同通道响应", fontsize=16)
+    fig.suptitle("Feature maps：每一行是一层，每一列是一个通道响应", fontsize=16)
     return fig
 
 
-def plot_pooling_comparison(results: list[TrainingResult]) -> plt.Figure:
-    """同时比较准确率、平移测试、参数量和训练曲线。"""
-
+def _comparison_split(results: list[TrainingResult]) -> str:
     if not results:
         raise ValueError("results 不能为空。")
+    if all(result.val_accuracy is not None for result in results):
+        return "val"
+    if all(result.test_accuracy for result in results):
+        return "test"
+    raise ValueError("对比需要共同的验证集，或已评估的测试集；请为所有实验提供相同的数据划分。")
+
+
+def _comparison_accuracy(result: TrainingResult, split: str) -> float:
+    return result.final_validation_accuracy if split == "val" else result.final_test_accuracy
+
+
+def plot_pooling_comparison(results: list[TrainingResult]) -> plt.Figure:
+    """比较同一数据划分上的准确率、平移、参数量和训练曲线。"""
+
+    split = _comparison_split(results)
+    evaluation_label = "验证" if split == "val" else "测试"
     configure_chinese_font()
     labels = [result.config.name for result in results]
-    clean = [result.final_test_accuracy for result in results]
-    shifted = [shifted_accuracy(result) for result in results]
+    clean = [_comparison_accuracy(result, split) for result in results]
+    shifted = [shifted_accuracy(result, split=split) for result in results]
     parameters = [result.parameter_count for result in results]
     times = [result.elapsed_seconds for result in results]
     positions = np.arange(len(results))
     fig, axes = plt.subplots(2, 2, figsize=(13, 9), constrained_layout=True)
     width = 0.35
-    axes[0, 0].bar(positions - width / 2, clean, width, label="原始测试集", color="#2563EB")
+    axes[0, 0].bar(positions - width / 2, clean, width, label=f"原始{evaluation_label}集", color="#2563EB")
     axes[0, 0].bar(positions + width / 2, shifted, width, label="右移 1 像素", color="#F97316")
     axes[0, 0].set_ylim(0, 1.02)
     axes[0, 0].set_xticks(positions, labels)
-    axes[0, 0].set_title("准确率与轻微平移：不能只看一个数字")
+    axes[0, 0].set_title("准确率与轻微平移：同时观察两项表现")
     axes[0, 0].legend()
     axes[0, 1].bar(labels, parameters, color="#7C3AED")
-    axes[0, 1].set_title("参数量：不池化会保留更大的空间特征")
+    axes[0, 1].set_title("参数量：空间尺寸、通道数和分类层共同影响")
     axes[0, 1].set_ylabel("可训练参数")
     for position, value in enumerate(parameters):
         axes[0, 1].text(position, value, f"{value:,}", ha="center", va="bottom")
     for result in results:
-        axes[1, 0].plot(range(1, result.config.epochs + 1), result.train_loss, label=result.config.name)
-        axes[1, 1].plot(range(1, result.config.epochs + 1), result.test_accuracy, label=result.config.name)
+        axes[1, 0].plot(range(1, len(result.train_loss) + 1), result.train_loss, label=result.config.name)
+        _plot_accuracy_curve(axes[1, 1], result, split=split, label=result.config.name)
     axes[1, 0].set_title("训练 Loss")
     axes[1, 0].set_xlabel("Epoch")
     axes[1, 0].set_ylabel("Cross-Entropy")
-    axes[1, 1].set_title("测试 Accuracy")
+    axes[1, 1].set_title(f"{evaluation_label} Accuracy（单次最终测试显示为点）")
     axes[1, 1].set_xlabel("Epoch")
     axes[1, 1].set_ylim(0, 1.02)
     axes[1, 0].legend()
@@ -309,15 +400,27 @@ def plot_pooling_comparison(results: list[TrainingResult]) -> plt.Figure:
     axes[0, 1].text(0.98, 0.04, "训练时间：" + "｜".join(f"{name} {value:.2f}s" for name, value in zip(labels, times)), transform=axes[0, 1].transAxes, ha="right", fontsize=9)
     for axis in axes.ravel():
         axis.grid(axis="y", alpha=0.2)
-    fig.suptitle("Pooling 单变量对比：空间压缩、参数量与表现的共同变化", fontsize=16)
+    fig.suptitle(f"CNN 配置对比：共同使用{evaluation_label}集比较", fontsize=16)
     return fig
 
 
 def format_result_table(results: list[TrainingResult]) -> str:
-    lines = ["CNN 配置对比", "-" * 78, f"{'配置':<22}{'测试准确率':>12}{'右移准确率':>12}{'参数量':>12}{'耗时(秒)':>12}", "-" * 78]
+    split = _comparison_split(results)
+    evaluation_label = "验证" if split == "val" else "测试"
+    show_final_test = split == "val"
+    heading = f"{'配置':<22}{evaluation_label + '准确率':>12}{evaluation_label + '右移':>12}"
+    if show_final_test:
+        heading += f"{'最终测试':>12}"
+    heading += f"{'参数量':>12}{'耗时(秒)':>12}"
+    lines = [f"CNN 配置对比（统一比较{evaluation_label}集）", "-" * 94, heading, "-" * 94]
     for result in results:
-        lines.append(f"{result.config.name:<22}{result.final_test_accuracy:>11.1%}{shifted_accuracy(result):>11.1%}{result.parameter_count:>12,}{result.elapsed_seconds:>12.2f}")
-    lines.append("-" * 78)
+        line = f"{result.config.name:<22}{_comparison_accuracy(result, split):>11.1%}{shifted_accuracy(result, split=split):>11.1%}"
+        if show_final_test:
+            final_test = f"{result.final_test_accuracy:.1%}" if result.test_accuracy else "未评估"
+            line += f"{final_test:>12}"
+        line += f"{result.parameter_count:>12,}{result.elapsed_seconds:>12.2f}"
+        lines.append(line)
+    lines.append("-" * 94)
     return "\n".join(lines)
 
 

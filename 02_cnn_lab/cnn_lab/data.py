@@ -67,11 +67,13 @@ def resolve_device(requested: str) -> torch.device:
     return torch.device(requested)
 
 
-def load_digits_data(seed: int = 42, test_size: float = 0.25) -> ImageDatasetBundle:
-    """加载 scikit-learn 内置的 8×8 数字，并转成 CNN 四维 Tensor。"""
+def load_digits_data(seed: int = 42, test_size: float = 0.25, val_size: float = 0.0) -> ImageDatasetBundle:
+    """加载 8×8 数字；val_size 是总样本比例，默认为 0 以兼容基础实验。"""
 
     if not 0.0 < test_size < 1.0:
         raise ValueError("test_size 必须位于 0 和 1 之间。")
+    if not 0.0 <= val_size < 1.0 - test_size:
+        raise ValueError("val_size 必须非负，且 val_size + test_size 小于 1。")
     digits = load_digits()
     images = (digits.images.astype(np.float32) / 16.0)[:, None, :, :]
     labels = digits.target.astype(np.int64)
@@ -79,6 +81,12 @@ def load_digits_data(seed: int = 42, test_size: float = 0.25) -> ImageDatasetBun
     train_indices, test_indices = train_test_split(
         indices, test_size=test_size, random_state=seed, stratify=labels
     )
+    val_indices = None
+    if val_size:
+        train_indices, val_indices = train_test_split(
+            train_indices, test_size=val_size / (1.0 - test_size),
+            random_state=seed, stratify=labels[train_indices],
+        )
     return ImageDatasetBundle(
         x_train=torch.from_numpy(images[train_indices]),
         y_train=torch.from_numpy(labels[train_indices]),
@@ -87,4 +95,6 @@ def load_digits_data(seed: int = 42, test_size: float = 0.25) -> ImageDatasetBun
         class_names=tuple(str(value) for value in range(10)),
         dataset_name="digits8",
         pixel_range=(0.0, 1.0),
+        x_val=torch.from_numpy(images[val_indices]) if val_indices is not None else None,
+        y_val=torch.from_numpy(labels[val_indices]) if val_indices is not None else None,
     )

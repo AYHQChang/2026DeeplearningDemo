@@ -1,81 +1,133 @@
-# CNN 手写数字与特征图实验室
+# CNN 手写数字与服饰分类实验室
 
-本实验室使用 scikit-learn 自带的 `load_digits`，无需联网下载数据，也不依赖 `torchvision`。
-核心实验从 `8×8` 灰度数字开始；第 07 份 Notebook 用离线 `28×28` 服饰图片练习手动替换数据集。
+本实验室先用 scikit-learn 内置的 `load_digits` 完成 `8×8` 灰度数字分类，再用项目提供的 `28×28` Fashion-MNIST 图片练习手动替换数据集。两个任务使用相同的网络组合和训练入口，不需要安装 `torchvision`。
 
-## 推荐顺序
+## 学习顺序与二选一任务
 
-| 顺序 | Notebook | 主要任务 | 主要图片 |
-|---:|---|---|---|
-| 0 | `00_一键体验.ipynb` | 先完成一次数字分类 | 训练诊断、混淆矩阵、错误样本、Feature maps |
-| 1 | `01_图片数据与四维张量.ipynb` | 对齐图片、像素和 `[B,C,H,W]` | 数字画廊、像素矩阵、shape 流程 |
-| 2 | `02_卷积核与池化.ipynb` | 理解局部卷积、Padding 和 Pooling | 人工卷积核、输出响应、池化对比 |
-| 3 | `03_训练第一个CNN.ipynb` | 训练两层 CNN 并观察中间层 | Loss、Accuracy、混淆矩阵、两层 Feature maps |
-| 4 | `04_CNN组件对比实验.ipynb` | 单独比较三种 Pooling | 准确率、平移测试、参数量和曲线 |
-| 5 | `05_自主修改练习.ipynb` | 只修改一个结构参数 | 基线与修改后诊断图 |
-| 6 | `06_CNN识别侦探项目.ipynb` | 四小时综合取证、最小代码修改和预算挑战 | 四徽章、混淆数字、Feature maps |
-| 7 | `07_手动替换图片数据集.ipynb` | 图片文件夹、类别映射与三划分接入 | 图片预览、张量形状、训练曲线、混淆矩阵 |
+| 阶段 | Notebook | 使用者要完成的事 |
+|---|---|---|
+| 基础 | `00_一键体验.ipynb` | 先跑通一次数字分类，找到训练曲线、混淆矩阵和 Feature maps |
+| 基础 | `01_图片数据与四维张量.ipynb` | 对齐像素、标签与 `[B,C,H,W]` |
+| 基础 | `02_卷积核与池化.ipynb` | 理解卷积、Padding、Max/Avg Pooling |
+| 基础 | `03_训练第一个CNN.ipynb` | 理解两层 CNN 的训练与中间响应 |
+| 基础 | `04_CNN组件对比实验.ipynb` | 固定其余条件，比较三种池化方式 |
+| **路线 A：数字** | `05_自主修改练习.ipynb` | 自己组合数字分类网络，完成基线、结构变化、训练变化、二者组合共 4 组实验 |
+| **路线 B：Fashion** | `07_手动替换图片数据集.ipynb` | 手动接入服饰图片，完成至少 3 种网络结构的验证集对比，再选定一种做最终测试，并练习从三类改为两类 |
+| 进阶选做 | `06_CNN识别侦探项目.ipynb` | 阅读源码、增加激活函数、预算内探索并解释证据 |
 
-## 07 手动替换图片数据集
-
-`07_手动替换图片数据集.ipynb` 是独立的后续练习。它用项目自带的
-`data/fashion_small.zip` 演示把图片文件夹接入现有 CNN：定位文件、统一标签、
-读图并缩放为 `[B,1,28,28]`、检查输出类别数、使用训练/验证/测试三个划分。
-第一次运行 Notebook 会将压缩包解压到 `data/fashion_small/`；学生只需编辑
-`DATA_DIR` 和 `CLASS_NAMES`，就能改用自己的同结构图片文件夹。
-
-课程包选自 [Zalando Research Fashion-MNIST](https://github.com/zalandoresearch/fashion-mnist)
-（MIT 许可，许可文本见 `data/FASHION_MNIST_LICENSE.txt`）：`bag`、`sneaker`、`trousers` 三类，每类训练 300 张、验证 100 张、
-测试 100 张，共 1500 张 28×28 灰度 PNG。训练和验证图从原官方训练集抽取，
-测试图从原官方测试集抽取；固定随机种子为 42。压缩包内的 `MANIFEST.json`
-记录类别映射、源文件 SHA256 和所选原始索引。教师可运行
-`tools/prepare_fashion_subset.py` 从官方原始文件重建数据包；学生的正常练习
-不需要联网或安装 `torchvision`。
-
-训练入口在提供 `x_val`、`y_val` 时，每轮只绘制验证准确率，训练结束后才计算
-一次测试准确率。原有数字实验未提供验证集，仍使用原来的训练与测试曲线。
-该练习不改变 `05_自主修改练习.ipynb` 的必交作业要求。
-
-## 必交课程作业
-
-完成 `05_自主修改练习.ipynb` 末尾的“模型组合小实验”：保留基线、一个模型因素、一个训练因素及二者组合，共 4 组结果；提交自动汇总表、右移 Accuracy、混淆矩阵或 Feature map，以及 250–400 字报告。作业不按 Accuracy 高低排名。`06_CNN识别侦探项目.ipynb` 保留为拓展挑战。
-
-## 四小时综合项目
-
-`06_CNN识别侦探项目.ipynb` 把 240 分钟分配给像素观察、卷积与池化解释、三组
-单变量实验、阅读并修改 `model.py`、预算内调参和证据报告。全项目正式训练最多
-8 次；四小时来自分析、编程和表达，不来自长时间占用服务器。
-
-四枚徽章分别检查原图 Accuracy、右移一像素后的 Accuracy、参数量和更新次数。
-评分不使用运行时间。训练入口会拦截 `device="auto"`，并限制
-`epochs≤40`、`batch_size≤256`、通道数≤64、`kernel_size≤7`、单次更新≤4000、
-模型参数量≤750000。默认仍为 CPU 单线程，数据离线加载，DataLoader 不创建子进程。
-
-模型现在把激活函数集中在 `cnn_lab/model.py` 的 `_activation()`，学生增加一种
-PyTorch 已有激活函数时只需修改一个映射，不需要复制模型或训练循环。
+建议先完成 **00–04** 的基础实验，再从 **05 数字路线或 07 Fashion 路线中任选一条** 完成课程实验，之后可选择 06 进阶练习。两条路线二选一，只需提交所选路线的一份实验报告；未选路线无需完成或写入报告。这里的“手写字”具体指 0–9 手写数字；服饰入门包包含包、运动鞋、裤子三个类别。
 
 ## 最短启动
 
+在服务器终端执行：
+
 ```bash
 conda activate dl2026
-cd "$HOME/2026DeeplearningDemo/02_cnn_lab"
+cd "$HOME/courses/Deeplearning2026/02_cnn_lab"
 python test_cnn_smoke.py
+python test_cnn_composition.py
 ```
 
-然后在 VS Code 中打开 `00_一键体验.ipynb`，选择 `Python (dl2026)` 并点击 `Run All`。
+在 VS Code 的“文件 → 打开文件夹”中直接打开 `02_cnn_lab`，再打开 Notebook，选择 `Python (dl2026)` 内核。首次运行从第一个单元格开始顺序执行，或使用 `Run All`。项目根目录也能运行；不要只打开一个游离的 Notebook 文件或其数据子文件夹。若提示 `No module named cnn_lab`，先检查打开的文件夹和当前内核，而不是执行 `pip install cnn_lab`。
 
-共享服务器默认使用 CPU。只有获得课堂分配后，才把 Notebook 中的 `DEVICE = "cpu"`
-改成 `DEVICE = "cuda:x"`，并用指定的 GPU 编号替换 `x`。编号从 0 开始。
+共享服务器默认 `DEVICE = "cpu"`。获得课堂分配后，才使用指定编号的 `cuda:x`；编号从 0 开始。
 
-## 替换成自己的图片
+## 自己组合 CNN：要改哪里
 
-参照第 07 份 Notebook，把图片放进 `train/类别名/图片`、`val/类别名/图片` 和
-`test/类别名/图片`。修改 `DATA_DIR` 与 `CLASS_NAMES` 后，从头运行全部单元格。
-Notebook 将图片统一转成 28×28 灰度图，返回包含三个划分的 `ImageDatasetBundle`；
-`SmallCNN(image_size=28, n_classes=类别数)` 随数据确定输入尺寸和输出类别数。
-当前模型只接受单通道正方形图片，彩色图会转为灰度。
+05 和 07 都把操作集中在三个位置：**数据设置 → 网络结构 → 训练设置**。网络通过 `ConvBlock` 列表组合，每个块按“卷积 → 可选 BatchNorm → 激活 → 可选池化 → 可选 Dropout”运行。
 
-## 资源释放
+```python
+BLOCKS = (
+    ConvBlock(out_channels=4, kernel_size=3, activation="relu", pooling="max"),
+    ConvBlock(out_channels=8, kernel_size=3, activation="relu", pooling="none"),
+)
+```
 
-每份 Notebook 最后都有“清理并结束内核”单元格。运行它会清空变量、释放未使用的
-CUDA 缓存，并正常结束当前 Python 进程。VS Code 随后显示内核停止或要求重新选择内核属于正常现象。
+每一行是一个卷积块；增加或删除一行就改变网络深度。允许 1–3 个块，分类层根据图片尺寸和类别数量自动建立。
+
+| 参数 | 可选值或范围 | 建议观察什么 |
+|---|---|---|
+| `out_channels` | 正整数，最大 64 | 参数量、每层 Feature maps、验证准确率 |
+| `kernel_size` | `1`、`3`、`5`、`7` | 卷积覆盖范围；Padding 保持卷积前后的空间尺寸 |
+| `activation` | `"relu"`、`"tanh"`、`"leaky_relu"` | Loss 与验证曲线；可给每个块选择不同函数 |
+| `pooling` | `"max"`、`"avg"`、`"none"` | 空间尺寸和参数量；池化会把边长减半并向下取整 |
+| `batch_norm` | `True` 或 `False` | 同一设置下的训练变化；进阶选项 |
+| 块内 `dropout` | `0 ≤ 值 < 1`，初学可试 `0.1`、`0.2` | 训练与验证准确率的差距 |
+| `ExperimentConfig.dropout` | `0 ≤ 值 < 1` | 分类头的 Dropout，与块内 Dropout 分开设置 |
+
+块内 Dropout 使用 `Dropout2d`，训练时随机屏蔽部分特征通道；分类头 Dropout 作用于展平后的特征。验证与测试时，训练入口会关闭 Dropout，并让 BatchNorm 使用累计统计。
+
+结构配置写入 `ExperimentConfig(blocks=BLOCKS, ...)`。填写 `blocks` 后，旧的 `channels/kernel_size/pooling/activation` 简写不再决定卷积结构；00–04 的原有两层简写仍可使用。`learning_rate`、`batch_size`、`epochs`、`seed`、`device` 仍在训练配置里修改。
+
+先查看 Notebook 输出的模型结构、逐层形状和参数量，再开始训练。不要把“多堆一层”当成必然提升；例如池化太多会把图片压得过小。填写偶数卷积核、超过 3 个块、非法参数或会使图片尺寸变为 0 的池化时，程序会给出配置错误提示。
+
+## 比较模型与最终测试
+
+05 使用数字训练/验证/测试划分，07 使用图片目录中的三个划分。探索阶段统一调用：
+
+```python
+from datetime import datetime
+
+# 每一批正式对比开始时生成一次路径；这一批内使用同一个 record_path。
+record_path = f"outputs/my_cnn_trials_{datetime.now():%Y%m%d_%H%M%S}.csv"
+result = train_experiment(config, data=data, evaluate_test=False)
+```
+
+每次修改结构或训练参数，都保留实验名称、配置、参数量和验证成绩。05 的训练因素可选择 `learning_rate`、`batch_size` 或分类头 `dropout`；四组只改变对应因素，共同固定数据划分、`epochs`、`seed` 和 `device`。若改变 `batch_size`，报告中需说明每轮及总更新次数也会变化。通过验证集和模型大小选定一个方案，然后运行一次：
+
+```python
+evaluate_final(selected)
+save_experiment_records(results, record_path)
+```
+
+CSV 文件名应包含训练批次的时间戳，例如 `outputs/digits_trials_20261007_143000.csv`，重新训练一批时生成新文件，便于保留之前的记录。完成最终测试后，用同一批 `results` 再保存到本轮 CSV，使选定模型的测试成绩回写当前记录；未选中的模型仍保留空测试成绩。
+
+最终测试的作用是报告选定模型在保留数据上的表现。测试后不要继续根据测试成绩调参。探索阶段的混淆矩阵、错误图片和 Feature maps 使用验证集；最终测试后可查看所选模型的测试诊断图。
+
+若想完全自己写网络，可在 Notebook 定义 PyTorch `nn.Module`，通过 `train_experiment(config, data=data, model=my_model, evaluate_test=False)` 训练。**先调用 `seed_everything(config.seed)`，再创建自定义模型**，才能固定模型初始化。模型应接收 `[B,1,H,W]` 并输出 `[B,类别数]` 的原始分类分数；不要在最后加 Softmax。自定义模型若提供 `feature_maps(x)`，也可用现有函数查看中间特征。
+
+## 手动替换服饰或自己的图片
+
+第 07 份 Notebook 保留完整的手动接入过程：定位目录、确定类别顺序、读一张图、灰度化和缩放、除以 255、堆叠张量、检查标签和分类输出。先理解这些步骤，再替换数据。
+
+```text
+my_dataset/
+├── train/
+│   ├── bag/       图片.png 或 图片.jpg
+│   ├── sneaker/
+│   └── trousers/
+├── val/          与 train 相同的类别文件夹
+└── test/         与 train 相同的类别文件夹
+```
+
+修改 `DATA_DIR`、`CLASS_NAMES` 与需要时的 `IMAGE_SIZE`，重新运行数据加载与检查单元格，再运行模型定义和训练。三个划分必须使用相同的类别名称；标签由 `CLASS_NAMES` 的顺序决定，每个划分的每类都应有图片。不要把同一张图片复制到不同划分，也不要用验证/测试图片补训练集。图片统一转成单通道正方形，彩色图会转为灰度。
+
+首次运行会将 `data/fashion_small.zip` 解压到 `data/fashion_small/`。课程包选自 [Zalando Research Fashion-MNIST](https://github.com/zalandoresearch/fashion-mnist)（MIT 许可，见 `data/FASHION_MNIST_LICENSE.txt`）：`bag`、`sneaker`、`trousers` 三类，每类训练 300、验证 100、测试 100 张，共 1500 张 28×28 灰度 PNG。训练/验证图来自官方训练集，测试图来自官方测试集；固定随机种子为 42。压缩包内的 `MANIFEST.json` 保存源文件 SHA256 与原始索引。教师可用 `tools/prepare_fashion_subset.py` 重建数据包，正常实验无需联网。
+
+## 修改后运行哪些单元格
+
+| 修改内容 | 操作顺序 |
+|---|---|
+| `BLOCKS` 或训练参数 | 重跑配置/模型预览 → 对应训练与记录 → 验证对比；保持已有实验记录 |
+| 数据目录、类别、图片尺寸 | 重跑数据加载与检查 → 模型配置/预览 → 训练与记录；为新数据开始一组新记录 |
+| `cnn_lab/model.py` 等 `.py` 源码 | 保存文件 → 重启 Notebook 内核 → 重跑导入、数据、配置及需要的训练单元格 |
+| 只修改报告或分析文字 | 重新查看已有图表和实验记录即可 |
+
+06 中新增激活函数后，先在**终端**运行 `python test_cnn_smoke.py`，再按上表重启 Notebook 内核。已导入模块会留在内存里，仅重跑训练单元格不一定载入新源码。重启后变量和实验列表会清空，必要记录应先保存为 CSV。
+
+## 报告与提交
+
+从 **05 数字路线与 07 Fashion 路线中二选一**，只提交 **所选路线的一份 Word 实验报告**，使用教师提供的 `02_CNN模型组合探索实验报告模板.docx`。未选路线无需完成或写入报告。
+
+- 选择 **05 数字路线**：报告记录基线、结构变化、训练变化、二者组合共 4 组实验。
+- 选择 **07 Fashion 路线**：报告记录手动数据接入过程、至少 3 种网络结构的验证集对比，以及从三类改为两类的迁移检查。
+
+所选路线都应保留配置表、验证对比、选定模型的最终测试结果，以及能支撑解释的曲线、混淆矩阵、错误样本或 Feature maps。
+
+Notebook 和自动生成的 CSV 保存在自己的项目目录，作为复查依据；默认无需额外提交，教师另有要求时再附上。源码挑战只在实际修改了代码时保留相应源码文件。评分看对比是否公平、证据是否完整、解释是否合理，**不按最高 Accuracy 排名**。
+
+## 预算与资源释放
+
+CPU 单线程，DataLoader 不创建子进程。单次实验限制 `epochs≤40`、`batch_size≤256`、每层通道数≤64、卷积核≤7、更新次数≤4000、模型参数量≤750000。建议先用少量轮数确认流程，再执行正式对比；四小时来自观察、编程与解释。06 的正式训练最多 8 次。
+
+每份 Notebook 最后有“清理并结束内核”单元格，会清空变量、释放未使用的 CUDA 缓存并结束 Python 进程。先保存 Notebook、CSV 和报告图片，再运行它。VS Code 随后显示内核停止或要求重新选择内核属于正常现象。
