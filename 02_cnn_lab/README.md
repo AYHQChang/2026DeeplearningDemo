@@ -8,8 +8,8 @@
 |---|---|---|
 | 基础 | `00_一键体验.ipynb` | 先跑通一次数字分类，找到训练曲线、混淆矩阵和 Feature maps |
 | 基础 | `01_图片数据与四维张量.ipynb` | 对齐像素、标签与 `[B,C,H,W]` |
-| 基础 | `02_卷积核与池化.ipynb` | 理解卷积、Padding、Max/Avg Pooling |
-| 基础 | `03_训练第一个CNN.ipynb` | 理解两层 CNN 的训练与中间响应 |
+| 基础 | `02_卷积核与池化.ipynb` | 手算一个卷积/池化窗口，修改核、Padding、Stride，并核对输出尺寸 |
+| 基础 | `03_训练第一个CNN.ipynb` | 用同一张图逐步看卷积、激活、池化、展平及分类，再比较训练前后 |
 | 基础 | `04_CNN组件对比实验.ipynb` | 固定其余条件，比较三种池化方式 |
 | **路线 A：数字** | `05_自主修改练习.ipynb` | 自己组合数字分类网络，完成基线、结构变化、训练变化、二者组合共 4 组实验 |
 | **路线 B：Fashion** | `07_手动替换图片数据集.ipynb` | 手动接入服饰图片，完成至少 3 种网络结构的验证集对比，再选定一种做最终测试，并练习从三类改为两类 |
@@ -26,11 +26,52 @@ conda activate dl2026
 cd "$HOME/courses/Deeplearning2026/02_cnn_lab"
 python test_cnn_smoke.py
 python test_cnn_composition.py
+python test_cnn_teaching.py
 ```
 
 在 VS Code 的“文件 → 打开文件夹”中直接打开 `02_cnn_lab`，再打开 Notebook，选择 `Python (dl2026)` 内核。首次运行从第一个单元格开始顺序执行。00–05 可用 `Run All`；07 学生版含必须补全的 TODO，初始直接 `Run All` 会在明确提示处停止，需逐项完成后再继续。项目根目录也能运行；不要只打开一个游离的 Notebook 文件或其数据子文件夹。若提示 `No module named cnn_lab`，先检查打开的文件夹和当前内核，而不是执行 `pip install cnn_lab`。
 
 共享服务器默认 `DEVICE = "cpu"`。获得课堂分配后，才使用指定编号的 `cuda:x`；编号从 0 开始。
+
+## 刚学完理论：先用一张图走过 CNN
+
+课堂演示建议按 **00 快速体验 → 01 像素与四维张量 → 02 手算与参数实验 → 03 逐层前向与训练 → 04 控制变量对比 → 05 或 07 自主实验** 进行。02 的小矩阵实验无需训练，每次先写下预测，再只改一个参数，运行检查实际 shape，最后解释差异。
+
+03 的基础网络以 8×8 灰度图为例：
+
+| 操作 | 输出 shape | 怎么解释 |
+|---|---|---|
+| 输入 | `[B,1,8,8]` | B 张图，每张 1 个通道，高和宽各 8 |
+| 第一层卷积 | `[B,8,8,8]` | 8 个卷积核组产生 8 个输出通道；不是 8 张输入图片 |
+| ReLU | `[B,8,8,8]` | 负值变为 0，shape 保持不变 |
+| 2×2 池化，步长 2 | `[B,8,4,4]` | 每个通道分别汇总局部窗口，通道数不变 |
+| 第二层卷积及 ReLU | `[B,16,4,4]` | 第二层融合前面 8 个通道，产生 16 个输出通道 |
+| Flatten | `[B,256]` | 每张图的 `16×4×4=256` 个数排成一个向量，B 保留 |
+| 全连接分类层 | `[B,10]` | 每张图得到 10 个原始分类分数（logits） |
+| Softmax，仅用于展示 | `[B,10]` | 同一张图的类别概率之和为 1 |
+| Argmax | `[B]` | 每张图得到一个类别编号，由 `class_names` 查名称 |
+
+`[B,1,8,8]` 是 **4 维张量**，其中每个轴的长度分别是 B、1、8、8；不能将“四维”理解成图像只有四个像素。预览通常用 B=1，训练时 B 由批量大小决定。分类分数不是特征图，也不是概率；交叉熵训练直接使用 logits，模型末尾不需要自行加 Softmax。
+
+第一层默认卷积权重 shape 是 `[8,1,3,3]`；第二层是 `[16,8,3,3]`。第二层每个输出通道会对全部 8 个输入通道分别卷积再相加，并加上偏置，不是简单地把某一个输入通道复制出来。若图片变为 28×28，相同结构池化后是 14×14，Flatten 得到 `16×14×14=3136` 个特征；类别数由数据决定，不能继续写死为 10。
+
+`print_model_summary` 查看每次操作的输入/输出尺寸、参数与作用。`plot_forward_pass` 把同一张图片的原始卷积、激活、池化分别画出，并单独展示展平向量、logits、概率和预测类别。例如在 Notebook 导入和加载数据后：
+
+```python
+from cnn_lab import SmallCNN, print_model_summary, plot_forward_pass
+
+model = SmallCNN(image_size=data.image_size, n_classes=data.n_classes)
+print_model_summary(model, image_size=data.image_size)
+feature_figure, head_figure = plot_forward_pass(
+    model, data.x_train[:1], class_names=data.class_names, max_channels=4,
+)
+display(feature_figure)
+display(head_figure)
+```
+
+这里新建的模型尚未训练；03 会比较训练前后的响应。02 人工设置的边缘卷积核也应与训练后学到的权重区分。图中会标明 shape、数值范围和显示通道数；只显示前几个通道时，不代表其余通道不存在。同一幅逐层图内各阶段共用响应色阶；训练前后或不同模型的图会按各自范围确定色阶。跨图比较应先核对色条刻度和数值范围，不能把颜色更红误当作数值增大，也不能仅凭一幅热图认定网络学到了某种语义。
+
+这些观察在 eval/no_grad 下执行，随后恢复各子模块原有状态，避免改变 BatchNorm 累计统计或影响之后的训练。05、07 使用同一观察入口；完成数据或结构修改后重跑模型预览与观察单元格，就能核对变化。
 
 ## 自己组合 CNN：要改哪里
 
@@ -45,6 +86,8 @@ BLOCKS = (
 
 每一行是一个卷积块；增加或删除一行就改变网络深度。允许 1–3 个块，分类层根据图片尺寸和类别数量自动建立。
 
+**02 的独立算子实验与正式组合模型的参数范围有所不同。** 02 可以直接修改卷积 `padding/stride` 及池化窗口和步长，用来验证计算过程与尺寸公式。05、07 中的正式 `ConvBlock` 目前固定卷积 `stride=1`、`padding=kernel_size//2`，池化窗口与步长均为 2；这些不是 `ConvBlock` 的可填参数。需要改变正式模型中这些固定值时，应先阅读源码，或自己定义 `nn.Module`。
+
 | 参数 | 可选值或范围 | 建议观察什么 |
 |---|---|---|
 | `out_channels` | 正整数，最大 64 | 参数量、每层 Feature maps、验证准确率 |
@@ -54,6 +97,8 @@ BLOCKS = (
 | `batch_norm` | `True` 或 `False` | 同一设置下的训练变化；进阶选项 |
 | 块内 `dropout` | `0 ≤ 值 < 1`，初学可试 `0.1`、`0.2` | 训练与验证准确率的差距 |
 | `ExperimentConfig.dropout` | `0 ≤ 值 < 1` | 分类头的 Dropout，与块内 Dropout 分开设置 |
+
+因此把正式模型的 `kernel_size` 从 3 改为 5 时，Padding 会从 1 同步改为 2，卷积输出高宽仍保持不变；变化的是覆盖范围与参数量。高宽保持不变并不代表卷积没有作用。02 中若固定 Padding 再改变卷积核大小，就可以看到不同的尺寸结果。默认无膨胀卷积时，每个空间轴满足 `输出=floor((输入+2×padding-kernel_size)/stride)+1`，高和宽分别计算。
 
 块内 Dropout 使用 `Dropout2d`，训练时随机屏蔽部分特征通道；分类头 Dropout 作用于展平后的特征。验证与测试时，训练入口会关闭 Dropout，并让 BatchNorm 使用累计统计。
 
@@ -85,6 +130,8 @@ CSV 文件名应包含训练批次的时间戳，例如 `outputs/digits_trials_2
 最终测试的作用是报告选定模型在保留数据上的表现。测试后不要继续根据测试成绩调参。探索阶段的混淆矩阵、错误图片和 Feature maps 使用验证集；最终测试后可查看所选模型的测试诊断图。
 
 若想完全自己写网络，可在 Notebook 定义 PyTorch `nn.Module`，通过 `train_experiment(config, data=data, model=my_model, evaluate_test=False)` 训练。**先调用 `seed_everything(config.seed)`，再创建自定义模型**，才能固定模型初始化。模型应接收 `[B,1,H,W]` 并输出 `[B,类别数]` 的原始分类分数；不要在最后加 Softmax。自定义模型若提供 `feature_maps(x)`，也可用现有函数查看中间特征。
+
+`trace_forward(model, images)` 按真实执行顺序记录输入与叶子 `nn.Module` 的输出。自定义网络中的 `F.relu()`、直接切片或 `tensor.flatten()` 等函数运算无法单独被模块挂钩捕获，可从相邻操作的输入/输出发现形状变化；需要逐项展示时，将这些操作写成 `nn.ReLU()`、`nn.Flatten()` 等模块，或自行提供 `feature_maps()`。项目自带网络已经将激活、池化和展平纳入逐层观察。
 
 ## 手动替换服饰或自己的图片
 

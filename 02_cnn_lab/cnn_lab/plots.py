@@ -12,6 +12,7 @@ from torch.nn import functional as F
 
 from .data import ImageDatasetBundle
 from .engine import TrainingResult, evaluation_data, shifted_accuracy
+from .model import ComposableCNN, SmallCNN, _print_trace_rows, trace_forward
 
 
 BUNDLED_CJK_FONT = (
@@ -174,15 +175,16 @@ def plot_pooling_demo(data: ImageDatasetBundle, index: int = 0) -> plt.Figure:
     max_pooled = F.max_pool2d(feature, 2)
     avg_pooled = F.avg_pool2d(feature, 2)
     fig, axes = plt.subplots(1, 3, figsize=(12, 4), constrained_layout=True)
+    common_max = max(float(feature.max()), 1e-6)
     for axis, tensor, title in zip(
         axes,
         (feature, max_pooled, avg_pooled),
-        (f"卷积响应｜{data.image_size}×{data.image_size}", f"Max Pooling｜{data.image_size // 2}×{data.image_size // 2}", f"Average Pooling｜{data.image_size // 2}×{data.image_size // 2}"),
+        (f"卷积 + ReLU 后｜{data.image_size}×{data.image_size}", f"Max Pooling｜{data.image_size // 2}×{data.image_size // 2}", f"Average Pooling｜{data.image_size // 2}×{data.image_size // 2}"),
     ):
-        axis.imshow(_image(tensor), cmap="magma", vmin=0)
+        axis.imshow(_image(tensor), cmap="magma", vmin=0, vmax=common_max)
         axis.set_title(title)
         axis.axis("off")
-    fig.suptitle("Pooling 不学习卷积核：它只汇总局部区域", fontsize=15)
+    fig.suptitle("Pooling 汇总局部区域；三图共用色阶（暗=0，亮=较大正值）", fontsize=15)
     return fig
 
 
@@ -295,56 +297,158 @@ def plot_training_overview(result: TrainingResult, split: str = "auto") -> plt.F
     return fig
 
 
+def _plot_trace_features(rows: list[dict], max_channels: int, title: str) -> plt.Figure:
+    """同一图内全部响应使用共同的对称色阶，保留负响应和零值。"""
+    if type(max_channels) is not int or max_channels <= 0:
+        raise ValueError("max_channels 必须是正整数。")
+    configure_chinese_font()
+    stages = [row for row in rows if row["tensor"].ndim == 4]
+    shown = min(max_channels, max(row["tensor"].shape[1] for row in stages))
+    responses = [row["tensor"][0, :shown] for row in stages if row["type"] != "Input"]
+    limit = max([float(value.abs().max()) for value in responses] + [1e-6])
+    fig, axes = plt.subplots(
+        len(stages), shown + 1, figsize=(2.7 + 2.0 * shown, 2.05 * len(stages) + 0.6),
+        constrained_layout=True, squeeze=False,
+    )
+    response_image = None
+    for row_number, row in enumerate(stages):
+        tensor = row["tensor"][0]
+        count = min(shown, tensor.shape[0])
+        axes[row_number, 0].axis("off")
+        axes[row_number, 0].text(
+            0.02, 0.94,
+            f"{row_number:02d} {row['label']}\n{row['layer']}\n"
+            f"输入 {row['input_shape']}\n输出 {row['output_shape']}\n"
+            f"展示前 {count}/{tensor.shape[0]} 个通道\n"
+            f"范围 [{float(tensor.min()):.3g}, {float(tensor.max()):.3g}]",
+            ha="left", va="top", fontsize=9.5, linespacing=1.35,
+        )
+        for channel, axis in enumerate(axes[row_number, 1:]):
+            axis.axis("off")
+            if channel >= count:
+                continue
+            if row["type"] == "Input":
+                axis.imshow(tensor[channel].numpy(), cmap="gray", vmin=0, vmax=1)
+            else:
+                response_image = axis.imshow(
+                    tensor[channel].numpy(), cmap="coolwarm", vmin=-limit, vmax=limit,
+                )
+            axis.set_title(f"通道 {channel}｜{tensor.shape[-2]}×{tensor.shape[-1]}", fontsize=10)
+    if response_image is not None:
+        colorbar = fig.colorbar(response_image, ax=axes[:, 1:].ravel().tolist(), fraction=0.025, pad=0.015)
+        colorbar.set_label("共同响应色阶：蓝=负，浅灰=0，红=正", fontsize=10)
+    fig.suptitle(
+        title + "\n同一张图片，按真实执行顺序；输入用 0–1 灰度，所有响应共用色阶",
+        fontsize=13,
+    )
+    return fig
+
+
+def plot_forward_pass(
+    model: torch.nn.Module, images: torch.Tensor, *,
+    class_names: tuple[str, ...] | list[str] | None = None, max_channels: int = 4,
+) -> tuple[plt.Figure, plt.Figure]:
+    """观察第一张图片：逐层图 + 展平/分类图；不训练、不选择数据划分。
+
+    从训练集或验证集传入图片即可。若 B>1，只观察 images[:1]，因此图中
+    B=1。自定义网络的 nn.Module 被逐项捕获；函数式运算不会单独列行。
+    """
+    if not isinstance(images, torch.Tensor) or images.ndim != 4 or len(images) == 0:
+        raise ValueError("images 应为非空 [B,C,H,W] Tensor。")
+    rows = trace_forward(model, images[:1])
+    logits = rows[-1]["tensor"]
+    classes = logits.shape[1]
+    if class_names is not None and len(class_names) != classes:
+        raise ValueError(f"class_names 长度应等于模型输出类别数 {classes}。")
+    names = [str(index) for index in range(classes)] if class_names is None else list(map(str, class_names))
+    print("观察 images[:1]：本次 B=1，训练的 Batch size 可以不同。")
+    _print_trace_rows(rows)
+    if not isinstance(model, (SmallCNN, ComposableCNN)):
+        print("自定义网络提示：仅逐项捕获 nn.Module；F.relu 等函数式运算不会单独列行，末行为实际模型输出。")
+    probabilities = torch.softmax(logits, dim=1)
+    prediction = int(probabilities.argmax(dim=1).item())
+    print(f"Softmax：{tuple(logits.shape)} → {tuple(probabilities.shape)}；每张图片的概率之和 = {float(probabilities.sum()):.6f}")
+    print(f"Argmax：{tuple(probabilities.shape)} → (1,)；预测标签 {prediction}，类别 {names[prediction]}")
+    print("观察处于评估模式：Dropout 关闭、BatchNorm 使用累计统计；原训练状态已恢复。")
+    features = _plot_trace_features(rows, max_channels, "逐层响应：卷积、激活和池化分别观察")
+    head, axes = plt.subplots(1, 3, figsize=(15, 4.8), constrained_layout=True)
+    flatten = next((row for row in reversed(rows) if row["type"] == "Flatten"), None)
+    if flatten is not None:
+        vector = flatten["tensor"][0]
+        limit = max([
+            float(row["tensor"][0, :max_channels].abs().max())
+            for row in rows if row["tensor"].ndim == 4 and row["type"] != "Input"
+        ] + [1e-6])
+        axes[0].imshow(vector.numpy()[None, :], cmap="coolwarm", aspect="auto", vmin=-limit, vmax=limit)
+        axes[0].set_box_aspect(0.25)
+        axes[0].set_yticks([])
+        axes[0].set_xlabel(
+            "特征索引；一维向量压成一行，沿用响应色阶\n前 8 个值："
+            + ", ".join(f"{float(value):.3g}" for value in vector[:8]), fontsize=9,
+        )
+        axes[0].set_title(f"Flatten：{flatten['input_shape']}\n→ {flatten['output_shape']}；F={vector.numel()}", fontsize=11)
+    else:
+        axes[0].axis("off")
+        axes[0].text(0.05, 0.75, "未捕获到 nn.Flatten 模块。\n自定义网络可能使用函数式展平\n或其他分类头。", va="top", fontsize=12)
+    # 类别较多时展示概率最高的 12 类；预测仍根据全部类别计算。
+    indices = probabilities[0].topk(min(classes, 12)).indices.sort().values
+    positions = np.arange(len(indices))
+    shown_names = [names[int(index)] for index in indices]
+    axes[1].bar(positions, logits[0, indices].numpy(), color="#7C3AED")
+    axes[1].axhline(0, color="#475569", linewidth=0.8)
+    axes[1].set_title(f"全连接输出 logits：{tuple(logits.shape)}\n原始分数，可以为负，也不要求总和为 1", fontsize=11)
+    axes[2].bar(positions, probabilities[0, indices].numpy(), color="#2563EB")
+    axes[2].set_ylim(0, 1.02)
+    axes[2].set_title(f"Softmax 概率：{tuple(probabilities.shape)}\n全部 {classes} 类概率总和为 1；argmax → [B]", fontsize=11)
+    for axis in axes[1:]:
+        axis.set_xticks(positions, shown_names, rotation=40, ha="right", fontsize=9)
+        axis.set_xlabel("类别" + ("（只展示概率最高的 12 类）" if classes > 12 else ""))
+        axis.grid(axis="y", alpha=0.2)
+    head.suptitle(f"从四维响应到分类分数向量：预测 {names[prediction]}（标签 {prediction}）", fontsize=14)
+    return features, head
+
+
 def plot_feature_maps(
     result: TrainingResult, sample_index: int = 0, max_channels: int = 8,
     split: str = "auto",
 ) -> plt.Figure:
-    """按模型返回的顺序展示特征图，支持不同数量的卷积块。"""
-
-    if max_channels <= 0:
-        raise ValueError("max_channels 必须大于 0。")
-    feature_maps = getattr(result.model, "feature_maps", None)
-    if not callable(feature_maps):
-        raise ValueError("这个自定义模型没有 feature_maps()；请使用 show_features=False，或在模型中返回各层特征图。")
-    configure_chinese_font()
+    """内置模型逐项展示真实阶段；保留自定义 feature_maps() 兼容入口。"""
     images, truth, evaluation_label = evaluation_data(result, split=split)
     if not 0 <= sample_index < len(images):
         raise IndexError(f"sample_index 必须在 0 到 {len(images) - 1} 之间。")
-    device = next(result.model.parameters()).device
-    sample = images[sample_index:sample_index + 1].to(device)
-    result.model.eval()
-    with torch.no_grad():
-        maps = feature_maps(sample)
-        prediction = int(result.model(sample).argmax(dim=1).item())
-    if not isinstance(maps, dict) or not maps:
-        raise ValueError("feature_maps() 应返回非空字典：层名 -> [B, C, H, W] Tensor。")
-    tensors = []
-    for name, tensor in maps.items():
-        if not isinstance(tensor, torch.Tensor) or tensor.ndim != 4 or len(tensor) != 1:
-            raise ValueError(f"特征图 {name} 应为 [1, C, H, W] Tensor。")
-        tensors.append((str(name), tensor[0].cpu()))
-    rows = len(tensors)
-    shown_channels = min(max_channels, max(len(tensor) for _, tensor in tensors))
-    columns = shown_channels + 1
-    fig, axes = plt.subplots(rows, columns, figsize=(2.0 * columns, 2.4 * rows), constrained_layout=True, squeeze=False)
-    for row, (name, tensor) in enumerate(tensors):
-        if row == 0:
-            axes[row, 0].imshow(_image(sample), cmap="gray_r", vmin=0, vmax=1)
-            axes[row, 0].set_title(
-                f"{evaluation_label}输入\n真{_class_name(result.data, int(truth[sample_index]))}"
-                f"/预测{_class_name(result.data, prediction)}", fontsize=10,
-            )
-        else:
-            axes[row, 0].text(0.5, 0.5, f"{name}\nC×H×W\n{tuple(tensor.shape)}", ha="center", va="center", fontsize=10)
-        axes[row, 0].axis("off")
-        for channel in range(shown_channels):
-            axis = axes[row, channel + 1]
-            if channel < len(tensor):
-                axis.imshow(_image(tensor[channel]), cmap="magma")
-                axis.set_title(f"{name}\n通道 {channel}", fontsize=10)
-            axis.axis("off")
-    fig.suptitle("Feature maps：每一行是一层，每一列是一个通道响应", fontsize=16)
-    return fig
+    sample = images[sample_index:sample_index + 1]
+    rows = trace_forward(result.model, sample)
+    prediction = int(rows[-1]["tensor"].argmax(dim=1).item())
+    if not isinstance(result.model, (SmallCNN, ComposableCNN)):
+        feature_maps = getattr(result.model, "feature_maps", None)
+        if callable(feature_maps):
+            modes = {module: module.training for module in result.model.modules()}
+            parameter = next(result.model.parameters(), None)
+            device = parameter.device if parameter is not None else sample.device
+            dtype = parameter.dtype if parameter is not None else sample.dtype
+            try:
+                result.model.eval()
+                with torch.no_grad():
+                    maps = feature_maps(sample.to(device=device, dtype=dtype))
+            finally:
+                for module, training in modes.items():
+                    module.training = training
+            if not isinstance(maps, dict) or not maps:
+                raise ValueError("feature_maps() 应返回非空字典：阶段名 -> [B,C,H,W] Tensor。")
+            feature_rows = [rows[0]]
+            for name, tensor in maps.items():
+                if not isinstance(tensor, torch.Tensor) or tensor.ndim != 4 or len(tensor) != 1:
+                    raise ValueError(f"特征图 {name} 应为 [1,C,H,W] Tensor。")
+                feature_rows.append({
+                    "layer": str(name), "label": str(name), "type": "FeatureMap",
+                    "input_shape": (), "output_shape": tuple(tensor.shape),
+                    "tensor": tensor.detach().cpu().clone(),
+                })
+            rows = feature_rows
+    return _plot_trace_features(
+        rows, max_channels,
+        f"{evaluation_label}样本｜真实 {_class_name(result.data, int(truth[sample_index]))} / 预测 {_class_name(result.data, prediction)}",
+    )
 
 
 def _comparison_split(results: list[TrainingResult]) -> str:
