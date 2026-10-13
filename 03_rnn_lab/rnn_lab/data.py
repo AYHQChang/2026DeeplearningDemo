@@ -22,6 +22,7 @@ class SequenceDatasetBundle:
     x_test: torch.Tensor
     y_test: torch.Tensor
     class_names: tuple[str, ...] = CLASS_NAMES
+    feature_names: tuple[str, ...] | None = None
 
     @property
     def sequence_length(self) -> int:
@@ -120,6 +121,7 @@ def make_delayed_recall_data(
         y_val=y_val,
         x_test=x_test,
         y_test=y_test,
+        feature_names=("红", "绿", "蓝", "噪声1", "噪声2", "查询"),
     )
 
 

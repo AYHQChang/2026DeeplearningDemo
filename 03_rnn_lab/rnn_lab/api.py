@@ -27,7 +27,7 @@ def quick_demo(
     seed: int = 42,
     device: str = "cpu",
 ) -> dict[str, object]:
-    """运行一次可直接观察的延迟回忆实验。"""
+    """运行一次延迟回忆实验，只用验证集进行教学观察。"""
 
     config = ExperimentConfig(
         name=f"{cell_type.upper()}｜长度 {sequence_length}",
@@ -38,12 +38,15 @@ def quick_demo(
         seed=seed,
         device=device,
     )
-    result = run_experiment(config)
+    result = run_experiment(config, evaluate_test=False)
     print_result_table([result])
-    test_x, test_y = next(iter(result["loaders"]["test"]))
-    plot_sequence_sample(test_x, test_y)
-    plot_training_history(result["history"], title=config.name)
-    plot_confusion_matrix(result["metrics"]["targets"], result["metrics"]["predictions"])
+    val_x, val_y = next(iter(result["loaders"]["val"]))
+    plot_sequence_sample(val_x, val_y, class_names=result["data"].class_names)
+    plot_training_history(result["history"], title=config.name, n_classes=result["data"].n_classes)
+    plot_confusion_matrix(
+        result["val_metrics"]["targets"], result["val_metrics"]["predictions"],
+        class_names=result["data"].class_names, title="验证集混淆矩阵",
+    )
     _show()
     return result
 
@@ -54,7 +57,7 @@ def compare(
     seed: int = 42,
     device: str = "cpu",
 ) -> list[dict[str, object]]:
-    """以相同超参数比较三种循环单元和给定序列长度。"""
+    """以相同超参数比较三种循环单元，仅查看验证集结果。"""
 
     base = replace(
         ExperimentConfig(seed=seed, device=device),
@@ -63,8 +66,8 @@ def compare(
         val_size=180,
         test_size=180,
     )
-    results = compare_cells(base, lengths=lengths)
+    results = compare_cells(base, lengths=lengths, evaluate_test=False)
     print_result_table(results)
-    plot_comparison(results)
+    plot_comparison(results, split="val")
     _show()
     return results

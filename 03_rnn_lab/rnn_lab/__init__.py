@@ -14,7 +14,10 @@ from .engine import (
     compare_cells,
     comparison_configs,
     count_parameters,
+    evaluate_final,
     evaluate_model,
+    experiment_records,
+    export_experiments_csv,
     input_gradient_by_time,
     predict_proba,
     run_experiment,
@@ -22,6 +25,7 @@ from .engine import (
     validate_config,
 )
 from .model import RecurrentClassifier
+from .observation import observe_recurrence, print_model_summary
 from .plots import (
     configure_chinese_font,
     plot_comparison,
@@ -29,6 +33,7 @@ from .plots import (
     plot_hidden_states,
     plot_input_gradients,
     plot_recurrence_diagram,
+    plot_recurrent_trace,
     plot_sequence_sample,
     plot_tensor_structure,
     plot_training_history,
@@ -38,7 +43,8 @@ from .plots import (
 __all__ = [
     "CLASS_NAMES", "ExperimentConfig", "RecurrentClassifier", "SequenceDatasetBundle",
     "compare", "compare_cells", "comparison_configs", "configure_chinese_font",
-    "count_parameters", "evaluate_model", "input_gradient_by_time", "make_dataloaders",
+    "count_parameters", "evaluate_final", "evaluate_model", "experiment_records", "export_experiments_csv",
+    "input_gradient_by_time", "make_dataloaders", "observe_recurrence", "print_model_summary", "plot_recurrent_trace",
     "make_delayed_recall_data", "plot_comparison", "plot_confusion_matrix",
     "plot_hidden_states", "plot_input_gradients", "plot_recurrence_diagram",
     "plot_sequence_sample", "plot_tensor_structure", "plot_training_history",
