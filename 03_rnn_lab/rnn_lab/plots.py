@@ -11,7 +11,7 @@ import numpy as np
 import torch
 
 from .data import SequenceDatasetBundle
-from .engine import input_gradient_by_time
+from .engine import input_gradient_by_time, _check_test_cache
 from .model import RecurrentClassifier
 from .observation import observe_recurrence
 
@@ -271,6 +271,9 @@ def plot_comparison(results: list[dict[str, object]], split: str = "val") -> plt
     if split not in {"val", "test"}:
         raise ValueError("split 只能是 val 或 test。")
     metric_key = "val_metrics" if split == "val" else "metrics"
+    if split == "test":
+        for item in results:
+            _check_test_cache(item)
     if any(item.get(metric_key) is None for item in results):
         raise ValueError("存在未完成该划分评估的实验；探索阶段请使用 split='val'。")
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.5), constrained_layout=True)
@@ -301,6 +304,7 @@ def print_result_table(results: list[dict[str, object]]) -> None:
     print(f"{'模型':<8}{'长度':>6}{'验证准确率':>12}{'最终测试':>12}{'参数量':>10}{'时间/秒':>10}")
     print("-" * 64)
     for item in results:
+        _check_test_cache(item)
         config = item["config"]
         test_text = "未测试" if item["metrics"] is None else f"{item['metrics']['accuracy']:.1%}"
         print(

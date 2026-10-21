@@ -1,0 +1,18 @@
+{
+  "00_情感分类体验.ipynb": {
+    "sha256": "680fe3dd565722d9642d23ed4ac97b2cf7a57838b31d4e25b173178e79590bdb",
+    "purpose": "2026-10-17 executed snapshot before 2026-10-19 three-level revision"
+  },
+  "01_文字如何变成序列.ipynb": {
+    "sha256": "7089c64f31b1835b3878f130c2fdd8f082f3631e6962c41e11c53b4154dd10e9",
+    "purpose": "2026-10-17 executed snapshot before 2026-10-19 three-level revision"
+  },
+  "02_训练与模型对比.ipynb": {
+    "sha256": "de342881834588a79ddcfe4bd1db4c1aa6d49bace7e890bebba44201596d5e68",
+    "purpose": "2026-10-17 executed snapshot before 2026-10-19 three-level revision"
+  },
+  "03_自主修改与挑战.ipynb": {
+    "sha256": "66618d18b37699e5f88370425af4bafe7ce29c1f9b8b567a6759b9d04569137f",
+    "purpose": "2026-10-17 executed snapshot before 2026-10-19 three-level revision"
+  }
+}

@@ -1,0 +1,2 @@
+# Keep executed historical snapshots byte-identical to manifest.json on every platform.
+*.ipynb -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

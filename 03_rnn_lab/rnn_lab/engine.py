@@ -1,6 +1,7 @@
 """延迟回忆实验的配置、训练、评估和三种循环单元对比。"""
 
 import csv
+import hashlib
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 import time
@@ -263,17 +264,33 @@ def run_experiment(
     return result
 
 
+def model_fingerprint(model: nn.Module) -> str:
+    """模型状态与读出设置的摘要，防止把旧最终测试缓存用于新模型。"""
+    digest = hashlib.sha256(str(model).encode("utf8"))
+    for name, module in model.named_modules():
+        options = {key: value for key, value in vars(module).items()
+                   if not key.startswith("_") and key != "training"
+                   and isinstance(value, (str, int, float, bool, type(None)))}
+        digest.update(repr((name, sorted(options.items()))).encode("utf8"))
+    for name, value in model.state_dict().items():
+        digest.update(repr((name, tuple(value.shape), str(value.dtype))).encode("utf8"))
+        digest.update(value.detach().cpu().contiguous().reshape(-1).view(torch.uint8).numpy().tobytes())
+    return digest.hexdigest()
+
+
+def _check_test_cache(result: dict[str, object]) -> None:
+    if result["metrics"] is not None and result.get("_test_model_fingerprint") != model_fingerprint(result["model"]):
+        raise RuntimeError("最终测试后模型已改变；旧成绩只属于首次评价的模型，不能复用或重新选型。请保留原记录。")
+
+
 def evaluate_final(result: dict[str, object]) -> dict[str, object]:
-    """对已选定、不再调参的模型进行最终测试；重复调用返回缓存成绩。
-
-    此函数不重新训练、不改变 requires_grad。选定后应停止修改该模型，
-    缓存记录的是第一次最终测试的模型成绩，不能把缓存当作新训练模型的结果。
-    """
-
+    """只评价已选定模型；重复调用须核对模型状态，改变后拒绝旧缓存。"""
+    _check_test_cache(result)
     if result["metrics"] is None:
         data = result["data"]
         _check_split(data.x_test, data.y_test, data, "测试集")
         result["metrics"] = evaluate_model(result["model"], result["loaders"]["test"], result["config"].device)
+        result["_test_model_fingerprint"] = model_fingerprint(result["model"])
     return result["metrics"]
 
 
@@ -282,10 +299,15 @@ def experiment_records(results: list[dict[str, object]]) -> list[dict]:
 
     records = []
     for result in results:
+        _check_test_cache(result)
         record = asdict(result["config"])
         data = result["data"]
         recurrent = getattr(result["model"], "recurrent", None)
         record.update({
+            "task": result.get("task", "delayed_recall"),
+            "data_version": result.get("data_version", "generated_delayed_recall_v1"),
+            "data_split": result.get("data_split", "train/val/test"),
+            "patch_size": result.get("patch_size"),
             "model_class": type(result["model"]).__name__,
             "actual_recurrent_type": type(recurrent).__name__ if recurrent is not None else "",
             "actual_hidden_size": getattr(recurrent, "hidden_size", None),

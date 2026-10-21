@@ -8,3 +8,8 @@ logs/
 
 # 课程图片包解压后的工作目录
 02_cnn_lab/data/fashion_small/
+
+# ChnSentiCorp local noncommercial teaching bundle; public redistribution is not established.
+03_rnn_lab/06_text_classification/data/*.tsv
+03_rnn_lab/06_text_classification/data/*.zip
+03_rnn_lab/06_text_classification/data/*.tar.gz

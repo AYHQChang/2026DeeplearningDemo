@@ -1,0 +1,118 @@
+{
+  "version": "chnsenticorp-paddlehub-v2.0.0-unique-course-v1",
+  "class_names": [
+    "负面",
+    "正面"
+  ],
+  "label_mapping": {
+    "0": "负面",
+    "1": "正面"
+  },
+  "source": {
+    "url": "https://bj.bcebos.com/paddlehub-dataset/chnsenticorp.tar.gz",
+    "archive_md5": "fbb3217aeac76a2840d2d5cd19688b07",
+    "archive_sha256": "7251a6c7bedf7116b4727c809a694405187e1e9cbdb770f509504b16ca6d9c53",
+    "loader": "https://github.com/PaddlePaddle/PaddleNLP/blob/v2.0.0/paddlenlp/datasets/chnsenticorp.py",
+    "files": {
+      "train": {
+        "md5": "689360c4a4a9ce8d8719ed500ae80907",
+        "sha256": "0b2653c23e5c79f539472e90cb10522f0ada4b80d3da95572d8b48fda47d5b33"
+      },
+      "dev": {
+        "md5": "05e4b02561c2a327833e05bbe8156cec",
+        "sha256": "d129e443eac08ce7643013dad496a8edf282be39cac1a4f2ad080818b296b331"
+      },
+      "test": {
+        "md5": "917dfc6fbce596bb01a91abaa6c86f9e",
+        "sha256": "34f9d71eba6096cd8689e18913d28cf9a5f3c18a6c2804cd13304a321738c4bc"
+      }
+    },
+    "download_verified_date": "2026-10-17",
+    "note": "仅使用该tar.gz有标签版，未混入当前无标签test的zip版。"
+  },
+  "raw_counts": {
+    "train": 9600,
+    "dev": 1200,
+    "test": 1200
+  },
+  "audit": {
+    "normalization": "nfkc-whitespace-v1",
+    "duplicate_text_groups": 2039,
+    "cross_split_text_groups": 694,
+    "conflicting_label_groups": 36,
+    "excluded_rows": {
+      "train": 3316,
+      "dev": 410,
+      "test": 407
+    },
+    "eligible_counts": {
+      "train": 6284,
+      "dev": 790,
+      "test": 793
+    },
+    "rule": "任意规范化重复文本的全部出现均排除；不迁移划分、不改标签；仅排除完全一致文本，未检查语义近重复。",
+    "course_cross_split_overlap": 0
+  },
+  "sampling": {
+    "seed": 42,
+    "stratified_by_label": true,
+    "preserve_source_split": true,
+    "per_class": "train=1000/dev=250/test=250",
+    "algorithm": "random.Random(42+100*split_index+label).sample; shuffle seed=1042+split_index",
+    "split_order": [
+      "train",
+      "dev",
+      "test"
+    ]
+  },
+  "preprocessing": {
+    "normalization": "nfkc-whitespace-v1",
+    "character_level": true,
+    "pad_id": 0,
+    "unk_id": 1,
+    "vocabulary_source": "course train only",
+    "max_length_default": 100
+  },
+  "files": {
+    "train": {
+      "file": "train.tsv",
+      "source_split": "train",
+      "count": 2000,
+      "label_counts": {
+        "1": 1000,
+        "0": 1000
+      },
+      "sha256": "43884db99a36cbd008788ff4a2e567f5cc49f111301bc8311fca2b9ab7f7bcc5",
+      "bytes": 653732
+    },
+    "val": {
+      "file": "val.tsv",
+      "source_split": "dev",
+      "count": 500,
+      "label_counts": {
+        "1": 250,
+        "0": 250
+      },
+      "sha256": "a4c755dbb342067d87a3a3a194028e2e71555bf852618c693849d80629fff498",
+      "bytes": 165839
+    },
+    "test": {
+      "file": "test.tsv",
+      "source_split": "test",
+      "count": 500,
+      "label_counts": {
+        "1": 250,
+        "0": 250
+      },
+      "sha256": "559ceab2827a75b80dfa4e666417bda6d676e74febb8522ff0b7a4d544c51610",
+      "bytes": 148604
+    }
+  },
+  "use_and_redistribution": {
+    "pinned_archive_has_license_file": false,
+    "code_license_is_not_data_license": true,
+    "local_use": "仅本地非商业课程教学，不声明数据为Apache/MIT。",
+    "related_luge_terms": "另一个当前LUGE zip包附Participant Agreement，2.2允许非商业科研/教学；不将其当作固定旧包明确公共再分发授权。",
+    "public_redistribution": "未核实到固定旧包明确公共再分发授权；原始包/评论TSV/课程zip已gitignored，公开发布前须另行核实。"
+  }
+}

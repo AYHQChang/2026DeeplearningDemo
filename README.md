@@ -10,7 +10,7 @@
 
 ## 🎯 这个项目是做什么的？
 
-各实验室从可运行示例逐步过渡到自主编程。MLP、CNN、Transformer 另有综合探索项目；RNN 的第 05 份安排为课后约一周的分层作业：
+各实验室从可运行示例逐步过渡到自主编程。MLP、CNN、Transformer 另有综合探索项目；RNN 以文本情感分析为课堂主线，图片为选做扩展，课后约一周任选一条完成分层作业：
 
 ```text
 一键看到结果
@@ -78,22 +78,20 @@
 
 更详细的 CNN 使用说明见 [02_cnn_lab/README.md](./02_cnn_lab/README.md)。
 
-### `03_rnn_lab`：RNN、LSTM、GRU 与长期记忆
+### `03_rnn_lab`：文本情感分类三级实验
 
-前五份通过本地生成的“记秘密”任务理解循环网络：从连续三步矩阵手算，到真实模型的逐时刻隐藏状态、LSTM 细胞状态和完整 shape。最后一份由学生把熟悉的 Fashion 图片改成逐行或分块序列，补全模型前向并做受控比较，复用 CNN 的离线图片包。
+**学生统一入口：[文本03 三级实验](./03_rnn_lab/06_text_classification/03_自主修改与挑战.ipynb)。**第一级运行完整普通RNN并单参数调参；第二级补全LSTM的三处关键代码；第三级自行搭建GRU分类器。等级按承担的实现工作区分，不按准确率分档。
 
-| 顺序 | Notebook | 你会看到什么 |
-|---:|---|---|
-| 0 | [00_一键体验.ipynb](./03_rnn_lab/00_一键体验.ipynb) | 秘密时间线、训练曲线和验证集预测 |
-| 1 | [01_认识序列与三维张量.ipynb](./03_rnn_lab/01_认识序列与三维张量.ipynb) | B/T/F/H/L 含义、张量切片和完整形状链 |
-| 2 | [02_隐藏状态与循环记忆.ipynb](./03_rnn_lab/02_隐藏状态与循环记忆.ipynb) | 连续三步矩阵手算、共享权重、输入与历史贡献 |
-| 3 | [03_训练第一个RNN.ipynb](./03_rnn_lab/03_训练第一个RNN.ipynb) | 真实逐时刻 h/c、分类读出、logits/概率/类别 |
-| 4 | [04_RNN_LSTM_GRU对比.ipynb](./03_rnn_lab/04_RNN_LSTM_GRU对比.ipynb) | 验证集比较、参数量与耗时、LSTM 双状态 |
-| 5 | [05_自主修改练习.ipynb](./03_rnn_lab/05_自主修改练习.ipynb) | Fashion 逐行 → 空间分块与还原 → 可选平均读出，保留学生 TODO |
+| 入口 | 用途 |
+|---|---|
+| [文本03](./03_rnn_lab/06_text_classification/03_自主修改与挑战.ipynb) | 默认完整运行一级，后两级独立开关默认关闭，显式提交学生模型 |
+| [文本01 编码知识](./03_rnn_lab/06_text_classification/01_文字如何变成序列.ipynb) | 字符编号、PAD、Embedding、有效句尾图解 |
+| [文本00](./03_rnn_lab/06_text_classification/00_情感分类体验.ipynb)、[文本02](./03_rnn_lab/06_text_classification/02_训练与模型对比.ipynb) | 已有GRU/四模型结果标记为教师参考，默认关闭重算，保留原图与成绩 |
+| [原理00–04](./03_rnn_lab/README.md) | 张量、递推、训练和循环单元的按需补充 |
+| [图片扩展](./03_rnn_lab/05_image_classification/README.md) | 选做迁移，本轮维持原有难度设置 |
+| [RNN报告模板](./docs/03_RNN模型组合探索实验报告模板.docx) | 一份Word按实际完成等级追加，未开展部分注明即可 |
 
-第 05 份按基础、进阶、挑战分层完成，预计课后一周；基础可独立运行，关键数据转换和模型代码由学生填写。三组主要实验为逐行 RNN、逐行 LSTM/GRU、分块同一门控单元。先用验证集选型，再对选定模型做最终测试，保留实验 CSV 和图文证据；评分与提交形式按教师课堂说明。
-
-默认 CPU 单线程，05 不需要下载新数据或安装 torchvision。更详细的教学顺序、运行方法和作业要求见 [03_rnn_lab/README.md](./03_rnn_lab/README.md)。
+数据、词表、训练和绘图共用，默认CPU单线程。LSTM/GRU未完成时明确提示，不自动回退到完整参考模型。历史Notebook已按原字节归档，原输出目录保留；详情见[文本README](./03_rnn_lab/06_text_classification/README.md)与[RNN README](./03_rnn_lab/README.md)。
 
 ### `04_transformer_lab`：小型 Transformer 与注意力寻宝
 
@@ -177,7 +175,7 @@ python device_speed_demo.py --lab transformer --devices cpu,cuda:0 --preview-epo
 | `01_mlp_lab` | ✅ 已完成 | MLP、激活函数、优化器和二维分类 | 决策边界、Loss、Accuracy、梯度 |
 | `1.1` MLP 房价预测 | ✅ 已完成 | 多特征回归、数据划分、参数比较 | 房源表、预测阶段、误差图、自定义房源预测 |
 | `02_cnn_lab` | ✅ 已完成 | 卷积、池化、特征提取和图像分类 | 卷积核、特征图、混淆矩阵、错误样本 |
-| `03_rnn_lab` | ✅ 已完成 | RNN、LSTM、GRU 和图片序列分类 | 逐步手算、真实状态、Fashion 分层编程与对照 |
+| `03_rnn_lab` | ✅ 已完成 | 文本情感分析主线、RNN原理补充、图片扩展 | 编码/PAD/Embedding图解、逐字状态与概率、曲线和错例、分层作业 |
 | `04_transformer_lab` | ✅ 已完成 | Token、位置编码、Self-Attention 和小型 Encoder | Q/K/V 手算、Attention 图、组件对比、四小时挑战 |
 
 后续实验室会继续采用“基础六步 + 综合项目”的路线：先快速看到结果，再理解数据、
