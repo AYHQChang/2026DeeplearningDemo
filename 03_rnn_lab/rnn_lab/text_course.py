@@ -3,17 +3,19 @@
 一级提供完整普通 RNN；二/三级只训练调用方明确提交的学生模型。
 """
 from dataclasses import replace
+from copy import deepcopy
+import math
 
 import torch
 from torch import nn
 
 from .observation import evaluating
 from .text_engine import TextExperimentConfig, run_text_experiment
-from .text_model import TextClassifier
+from .text_model import TextClassifier, valid_last, masked_mean
 
 
 TUNABLE_PARAMETERS = {"learning_rate", "hidden_size", "epochs", "batch_size", "max_length",
-                      "embedding_dim", "num_layers"}
+                      "embedding_dim", "num_layers", "optimizer", "weight_decay", "gradient_clip", "dropout"}
 
 
 def make_tuned_config(base: TextExperimentConfig, parameter: str, value):
@@ -21,13 +23,23 @@ def make_tuned_config(base: TextExperimentConfig, parameter: str, value):
     if base.cell_type != "rnn" or base.readout != "last":
         raise ValueError("第一级固定普通 RNN 与有效 last；模型比较在第二/三级完成。")
     if parameter not in TUNABLE_PARAMETERS:
-        raise ValueError("请选择参数区中的学习率、H、轮数、batch、最大长度、E或层数。")
+        raise ValueError("请选择参数表中的单个训练参数；不能通过切换循环单元完成高等级。")
     if value == getattr(base, parameter):
         raise ValueError("调参值与基线相同，请选择一个不同值。")
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
-        raise ValueError("参数应为正数。")
-    if parameter != "learning_rate" and not isinstance(value, int):
-        raise ValueError("维度、长度、层数、batch和轮数应为正整数。")
+    if parameter == "optimizer":
+        if value not in {"adam", "sgd", "adamw"}:
+            raise ValueError("optimizer 为 adam、sgd 或 adamw。")
+    elif parameter == "gradient_clip" and value is None:
+        pass
+    else:
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise ValueError("数值参数必须为有限数。")
+        if value < 0 or (value == 0 and parameter not in {"dropout", "weight_decay"}):
+            raise ValueError("参数超出允许范围。")
+        if parameter in {"hidden_size", "epochs", "batch_size", "max_length", "embedding_dim", "num_layers"} and not isinstance(value, int):
+            raise ValueError("维度、长度、层数、batch和轮数应为正整数。")
+        if parameter == "dropout" and (value >= 1 or base.num_layers == 1):
+            raise ValueError("循环层间 dropout 需小于1；单层不生效，请不要把它作为有效调参。")
     return replace(base, name=f"一级调参｜{parameter}={value}", **{parameter: value})
 
 
@@ -52,24 +64,67 @@ def check_student_model(model: nn.Module, n_classes: int, cell_type: str) -> dic
     parameters = list(model.parameters())
     if not parameters:
         raise ValueError("学生模型没有可训练参数，请完成构造函数。")
+    embedding, classifier = getattr(model, "embedding", None), getattr(model, "classifier", None)
+    if not isinstance(embedding, nn.Embedding) or not isinstance(classifier, nn.Module):
+        raise ValueError("需要 embedding 和 classifier 模块，便于检查计算路径。")
+    if embedding.num_embeddings < 2 or embedding.padding_idx != 0:
+        raise ValueError("词表需含 PAD/UNK，且 Embedding padding_idx=0。")
     device = parameters[0].device
-    ids = torch.tensor([[1, 1, 0, 0], [1, 1, 1, 1]], dtype=torch.int64, device=device)
-    lengths = torch.tensor([2, 4], dtype=torch.int64, device=device)
-    with evaluating(model), torch.no_grad():
-        logits = model(ids, lengths)
-        if not isinstance(logits, torch.Tensor) or tuple(logits.shape) != (2, n_classes):
-            raise ValueError(f"forward 应返回 [B,K]=[2,{n_classes}] logits。")
-        if not bool(torch.isfinite(logits).all()):
-            raise ValueError("logits 含 NaN/Inf，请检查前向计算。")
-        padded = model(torch.nn.functional.pad(ids, (0, 3)), lengths)
-        alone = model(ids[:1, :2], lengths[:1])
-        try:
-            torch.testing.assert_close(logits, padded, atol=1e-6, rtol=1e-5)
-            torch.testing.assert_close(logits[:1], alone, atol=1e-6, rtol=1e-5)
-        except AssertionError as exc:
-            raise ValueError("增加右侧 PAD 或混合不同长度改变了有效句子结果，请检查读出位置/掩码。") from exc
+    ids = torch.tensor([[1, 2, 0, 0, 0], [3, 2, 4, 1, 5]], dtype=torch.int64, device=device)
+    ids = torch.where(ids == 0, ids, (ids - 1) % (embedding.num_embeddings - 1) + 1)
+    lengths = torch.tensor([2, 5], dtype=torch.int64, device=device)
+    before = deepcopy(model.state_dict())
+    devices = [device.index] if device.type == "cuda" else []
+    try:
+        with torch.random.fork_rng(devices=devices), evaluating(model):
+            with torch.no_grad():
+                logits = model(ids, lengths)
+                if not isinstance(logits, torch.Tensor) or tuple(logits.shape) != (2, n_classes):
+                    raise ValueError("forward 应返回 [B,K]=[2,K] logits。")
+                if not bool(torch.isfinite(logits).all()):
+                    raise ValueError("logits 含 NaN/Inf，请检查前向计算。")
+                try:
+                    torch.testing.assert_close(logits, model(torch.nn.functional.pad(ids, (0, 3)), lengths), atol=1e-6, rtol=1e-5)
+                    torch.testing.assert_close(logits[:1], model(ids[:1, :2], lengths[:1]), atol=1e-6, rtol=1e-5)
+                except AssertionError as exc:
+                    raise ValueError("增加右侧 PAD 或混合不同长度改变了有效句子结果，请检查读出位置/掩码。") from exc
+                # 用不同时间位置具有不同数值的状态替换循环输出，核对读出的语义。
+                probe = torch.arange(2 * 5 * recurrent.hidden_size, device=device, dtype=parameters[0].dtype).reshape(2, 5, recurrent.hidden_size) / 17
+                captured = []
+                def replace_states(module, args, output):
+                    return (probe, output[1])
+                def capture_sentence(module, args):
+                    captured.append(args[0].detach().clone())
+                handles = [recurrent.register_forward_hook(replace_states), classifier.register_forward_pre_hook(capture_sentence)]
+                try:
+                    probe_logits = model(ids, lengths)
+                finally:
+                    for handle in handles:
+                        handle.remove()
+                expected_sentence = (valid_last if model.readout == "last" else masked_mean)(probe, lengths)
+                if len(captured) != 1:
+                    raise ValueError("请把循环读出直接送入 classifier 模块一次。")
+                try:
+                    torch.testing.assert_close(captured[0], expected_sentence)
+                    torch.testing.assert_close(probe_logits, classifier(expected_sentence))
+                except AssertionError as exc:
+                    raise ValueError("读出语义不符：请核对有效句尾/排除PAD的平均，并直接返回 classifier 的 logits。") from exc
+            # autograd.grad 不写入已有 .grad；eval 关闭 dropout，禁用 cuDNN 使 GPU eval RNN 也可反传。
+            trainable = [(name, p) for name, p in model.named_parameters() if p.requires_grad]
+            with torch.enable_grad(), torch.backends.cudnn.flags(enabled=False):
+                loss = nn.functional.cross_entropy(model(ids, lengths), torch.tensor([0, 1], device=device))
+                if not loss.requires_grad:
+                    raise ValueError("输出已脱离计算图；请勿在 forward 中 detach 或 no_grad。")
+                gradients = torch.autograd.grad(loss, [p for _, p in trainable], allow_unused=True)
+            for prefix in ("embedding.", "recurrent.", "classifier."):
+                group = [g for (name, _), g in zip(trainable, gradients) if name.startswith(prefix)]
+                if not group or any(g is None or not bool(torch.isfinite(g).all()) for g in group):
+                    raise ValueError(f"{prefix[:-1]} 未完整接入有效反向计算，请检查 detach、未使用层或冻结参数。")
+    finally:
+        model.load_state_dict(before)
     return {"output_shape": tuple(logits.shape), "finite": True,
             "right_padding_invariant": True, "mixed_batch_invariant": True,
+            "readout_semantics": True, "gradient_connected": True,
             "recurrent": type(recurrent).__name__}
 
 
@@ -104,3 +159,32 @@ def run_course_experiment(config: TextExperimentConfig, data, *, level: int,
                                 3: "level3_student_gru"}[level]
     result["course_level"] = level
     return result
+
+
+LEVEL_COEFFICIENTS = {1: 0.8, 2: 0.9, 3: 1.0}
+
+
+def course_score(result: dict) -> dict:
+    """已测试模型的折算分；等级完成与独立实现仍由教师验收。不会触发测试。"""
+    from .text_engine import _check_cached_test
+    _check_cached_test(result)
+    level = result.get("course_level")
+    if level not in LEVEL_COEFFICIENTS or result.get("metrics") is None:
+        raise ValueError("请先固定已完成等级的模型，再显式完成最终测试。")
+    accuracy = float(result["metrics"]["accuracy"])
+    if not math.isfinite(accuracy) or not 0 <= accuracy <= 1:
+        raise ValueError("测试 Accuracy 必须是 0到1 的比例。")
+    coefficient = LEVEL_COEFFICIENTS[level]
+    return {"course_level": level, "test_accuracy": accuracy, "coefficient": coefficient,
+            "provisional_score": 100 * accuracy * coefficient,
+            "acceptance": "待教师核验等级完成条件与独立实现"}
+
+
+def check_design_pair(first, second):
+    """三级同模型单因素设计对照；允许读出、H、E或层数之一，预算保持一致。"""
+    ignored = {"name"}
+    changes = [key for key in first.__dataclass_fields__ if key not in ignored
+               and getattr(first, key) != getattr(second, key)]
+    if first.cell_type != "gru" or second.cell_type != "gru" or len(changes) != 1 or changes[0] not in {"readout", "hidden_size", "embedding_dim", "num_layers"}:
+        raise ValueError("三级对照需保持GRU及训练条件，仅改变读出、H、E或层数中的一项。")
+    return changes[0]

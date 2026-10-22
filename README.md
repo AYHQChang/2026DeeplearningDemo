@@ -78,20 +78,13 @@
 
 更详细的 CNN 使用说明见 [02_cnn_lab/README.md](./02_cnn_lab/README.md)。
 
-### `03_rnn_lab`：文本情感分类三级实验
+### `03_rnn_lab`：调参—完善—自行建模
 
-**学生统一入口：[文本03 三级实验](./03_rnn_lab/06_text_classification/03_自主修改与挑战.ipynb)。**第一级运行完整普通RNN并单参数调参；第二级补全LSTM的三处关键代码；第三级自行搭建GRU分类器。等级按承担的实现工作区分，不按准确率分档。
+**学生统一入口：[文本03 三级实验](./03_rnn_lab/06_text_classification/03_自主修改与挑战.ipynb)。**一级完成RNN学习率粗筛及有依据的后续单参数实验；二级补全LSTM三处TODO；三级自行实现GRU并完成A/B单因素设计对照。后两级独立开启，保留学生代码缺口。
 
-| 入口 | 用途 |
-|---|---|
-| [文本03](./03_rnn_lab/06_text_classification/03_自主修改与挑战.ipynb) | 默认完整运行一级，后两级独立开关默认关闭，显式提交学生模型 |
-| [文本01 编码知识](./03_rnn_lab/06_text_classification/01_文字如何变成序列.ipynb) | 字符编号、PAD、Embedding、有效句尾图解 |
-| [文本00](./03_rnn_lab/06_text_classification/00_情感分类体验.ipynb)、[文本02](./03_rnn_lab/06_text_classification/02_训练与模型对比.ipynb) | 已有GRU/四模型结果标记为教师参考，默认关闭重算，保留原图与成绩 |
-| [原理00–04](./03_rnn_lab/README.md) | 张量、递推、训练和循环单元的按需补充 |
-| [图片扩展](./03_rnn_lab/05_image_classification/README.md) | 选做迁移，本轮维持原有难度设置 |
-| [RNN报告模板](./docs/03_RNN模型组合探索实验报告模板.docx) | 一份Word按实际完成等级追加，未开展部分注明即可 |
+训练支持Adam、SGD+Momentum和选做AdamW；学生组按验证Accuracy选最佳轮次（同分看Loss，再同分取较早轮），恢复后再测试。代码检查覆盖形状、PAD、实际读出与梯度连接。正式成绩为100×最终测试Accuracy×等级系数0.8/0.9/1.0；系数跟随所选模型，等级需教师验收。正式提交前冻结方案，不能用测试调参。
 
-数据、词表、训练和绘图共用，默认CPU单线程。LSTM/GRU未完成时明确提示，不自动回退到完整参考模型。历史Notebook已按原字节归档，原输出目录保留；详情见[文本README](./03_rnn_lab/06_text_classification/README.md)与[RNN README](./03_rnn_lab/README.md)。
+[编码引导](./03_rnn_lab/06_text_classification/01_文字如何变成序列.ipynb)、[RNN说明](./03_rnn_lab/README.md)、[文本说明](./03_rnn_lab/06_text_classification/README.md)与[学校报告模板](./docs/03_RNN模型组合探索实验报告模板.docx)同步。提交一份Word主报告，附个人Notebook和汇总CSV；图片迁移仍为选做。CPU单线程，数据与历史输出保留。
 
 ### `04_transformer_lab`：小型 Transformer 与注意力寻宝
 

@@ -1,6 +1,8 @@
 """文本任务轻量训练适配：探索默认只评价验证集。"""
 
 import csv
+from copy import deepcopy
+import math
 from dataclasses import asdict, dataclass
 from datetime import datetime
 import hashlib
@@ -33,12 +35,30 @@ class TextExperimentConfig:
     batch_size: int = 64
     epochs: int = 6
     learning_rate: float = 0.003
+    optimizer: str = "adam"
+    momentum: float = 0.9
+    weight_decay: float = 0.0
+    selection: str = "last"  # 旧教师参考保持末轮；学生入口显式使用 best_val_accuracy。
     gradient_clip: float | None = 1.0
     seed: int = 42
     device: str = "cpu"
 
 
 def _validate_config(config):
+    integer_fields = ("embedding_dim", "hidden_size", "num_layers", "max_length", "batch_size", "epochs")
+    if any(isinstance(getattr(config, key), bool) or not isinstance(getattr(config, key), int)
+           for key in integer_fields):
+        raise ValueError("维度、长度、批量和轮数必须为正整数。")
+    if not all(math.isfinite(value) for value in (config.learning_rate, config.momentum, config.weight_decay, config.dropout)):
+        raise ValueError("训练参数必须为有限数。")
+    if config.optimizer not in {"adam", "sgd", "adamw"}:
+        raise ValueError("optimizer 为 adam、sgd 或 adamw。")
+    if not 0 <= config.momentum < 1 or config.weight_decay < 0:
+        raise ValueError("momentum 应在 [0,1)，weight_decay 不能为负。")
+    if config.selection not in {"last", "best_val_accuracy"}:
+        raise ValueError("selection 为 last 或 best_val_accuracy。")
+    if config.gradient_clip is not None and not math.isfinite(config.gradient_clip):
+        raise ValueError("gradient_clip 必须为有限正数或 None。")
     if config.device in {"auto", "cuda"}:
         raise ValueError("请使用 cpu，或课程分配的 cuda:编号。")
     if min(config.embedding_dim, config.hidden_size, config.num_layers, config.max_length,
@@ -105,13 +125,18 @@ def run_text_experiment(config: TextExperimentConfig, data: TextDataBundle, voca
         raise ValueError("文本模型应返回 [B,K] logits，K 由数据类别配置确定。")
     if not bool(torch.isfinite(output).all()):
         raise ValueError("文本模型 logits 含非有限值。")
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+    optimizer_class = {"adam": torch.optim.Adam, "sgd": torch.optim.SGD, "adamw": torch.optim.AdamW}[config.optimizer]
+    optimizer_options = {"lr": config.learning_rate, "weight_decay": config.weight_decay}
+    if config.optimizer == "sgd":
+        optimizer_options["momentum"] = config.momentum
+    optimizer = optimizer_class(model.parameters(), **optimizer_options)
     criterion = nn.CrossEntropyLoss()
     history = {"train_loss": [], "val_loss": [], "val_accuracy": [], "val_macro_f1": [], "grad_norm": []}
     if device.type == "cuda":
         torch.cuda.synchronize(device)
     started = time.perf_counter()
-    for _ in range(config.epochs):
+    best_key, best_state, best_val, selected_epoch = None, None, None, config.epochs
+    for epoch in range(1, config.epochs + 1):
         model.train()
         loss_sum, count, grad_sum, batches = 0.0, 0, 0.0, 0
         for batch in loaders["train"]:
@@ -132,10 +157,19 @@ def run_text_experiment(config: TextExperimentConfig, data: TextDataBundle, voca
         history["grad_norm"].append(grad_sum / batches)
         for name in ("loss", "accuracy", "macro_f1"):
             history[f"val_{name}"].append(val[name])
+        # 验证 Accuracy 最大；同分选 Loss 更低，再同分保留更早轮次。不读取测试。
+        key = (val["accuracy"], -val["loss"])
+        if config.selection == "best_val_accuracy" and (best_key is None or key > best_key):
+            best_key, best_state, best_val = key, deepcopy(model.state_dict()), val
+            selected_epoch = epoch
+    if config.selection == "best_val_accuracy":
+        model.load_state_dict(best_state)
+        val = best_val
     if device.type == "cuda":
         torch.cuda.synchronize(device)
     result = {"config": config, "data": data, "vocab": vocab, "model": model, "loaders": loaders,
               "history": history, "val_metrics": val, "metrics": None,
+              "selected_epoch": selected_epoch, "optimizer_steps": config.epochs * len(loaders["train"]),
               "elapsed_seconds": time.perf_counter() - started, "parameter_count": count_parameters(model),
               "diagnostics": text_data_diagnostics(data, vocab, config.max_length)}
     if evaluate_test:
@@ -210,9 +244,15 @@ def text_experiment_records(results: list[dict]) -> list[dict]:
             "n_classes": data.n_classes, "class_names": " | ".join(data.class_names),
             "train_size": len(data.splits["train"]), "val_size": len(data.splits["val"]), "test_size": len(data.splits["test"]),
             "parameter_count": result["parameter_count"], "elapsed_seconds": result["elapsed_seconds"],
+            "selected_epoch": result.get("selected_epoch", config.epochs),
+            "optimizer_steps": result.get("optimizer_steps", config.epochs * len(result["loaders"]["train"])),
+            "course_level": result.get("course_level", ""),
+            "level_coefficient": {1: .8, 2: .9, 3: 1.0}.get(result.get("course_level"), ""),
             "val_loss": result["val_metrics"]["loss"], "val_accuracy": result["val_metrics"]["accuracy"],
             "val_macro_f1": result["val_metrics"]["macro_f1"], "test_evaluated": result["metrics"] is not None,
             "test_model_fingerprint": result.get("test_model_fingerprint", "")}
+        record["provisional_score"] = (100 * result["metrics"]["accuracy"] * record["level_coefficient"]
+            if result["metrics"] is not None and record["level_coefficient"] != "" else None)
         for key in ("loss", "accuracy", "macro_f1"):
             record[f"test_{key}"] = None if result["metrics"] is None else result["metrics"][key]
         for split, diagnostics in result["diagnostics"].items():
@@ -247,7 +287,9 @@ def save_text_run(result: dict, output_root: str | Path) -> Path:
     export_text_experiments_csv([result], run_dir / "experiments.csv")
     metrics = {"validation": {key: result["val_metrics"][key] for key in ("loss", "accuracy", "macro_f1")},
                "test": None if result["metrics"] is None else {key: result["metrics"][key] for key in ("loss", "accuracy", "macro_f1")},
-               "model_fingerprint": model_fingerprint(result["model"]), "diagnostics": result["diagnostics"]}
+               "model_fingerprint": model_fingerprint(result["model"]), "diagnostics": result["diagnostics"],
+               "selected_epoch": result.get("selected_epoch", result["config"].epochs),
+               "selection": result["config"].selection}
     (run_dir / "metrics.json").write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")
     with (run_dir / "history.csv").open("w", encoding="utf-8-sig", newline="") as stream:
         fields = ["epoch", *result["history"]]

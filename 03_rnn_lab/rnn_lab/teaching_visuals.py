@@ -351,9 +351,9 @@ def plot_text_levels():
     """新版文本三级；旧A–D图继续用于历史参考，不重解释旧图。"""
     fig, axes = _figure(1, 3, figsize=(13, 4.6))
     items = [
-        ("第一级 运行与调参", "完整普通 RNN", "运行基线 → 修改一个参数\n保留两组曲线与验证结果", BLUE),
-        ("第二级 补全 LSTM", "构造和 forward 的三处 TODO", "按形状提示补齐 → 小批次核对\n通过后训练，与 RNN 比较", GREEN),
-        ("第三级 自主搭建 GRU", "给接口、步骤和检查", "自行写完整模型 → 接入训练\n解释结构选择与比较条件", ORANGE),
+        ("第一级 调参", "完整普通 RNN", "基线 + 两组学习率粗筛\n依据曲线再做一次单参数实验", BLUE),
+        ("第二级 完善", "LSTM 三处 TODO", "补全 → 读出语义与梯度检查\n同条件比较，并解释验证错例", GREEN),
+        ("第三级 自行建模", "GRU 接口与设计提示", "独立实现 + A/B 单因素对照\n依据验证结果解释设计选择", ORANGE),
     ]
     for ax, (title, provided, task, color) in zip(axes, items):
         ax.axis("off"); ax.set(xlim=(0, 1), ylim=(0, 1))
@@ -361,7 +361,7 @@ def plot_text_levels():
         _card(ax, .03, .13, .94, .32, task, color, 11)
         _arrow(ax, (.5, .63), (.5, .45), color)
         ax.set_title(title, fontsize=14)
-    fig.suptitle("同一文本任务，逐步增加实现工作｜后二级独立开启，不要求准确率逐级提高", fontsize=14)
+    fig.suptitle("同一文本任务的三级实践｜系数 0.8 / 0.9 / 1.0，完成条件由教师验收", fontsize=14)
     return fig
 
 

@@ -13,13 +13,19 @@ def plot_text_history(result: dict):
     configure_chinese_font()
     history = result["history"]
     epochs = range(1, len(history["train_loss"]) + 1)
-    fig, axes = plt.subplots(1, 2, figsize=(10, 3.7), constrained_layout=True)
+    fig, axes = plt.subplots(1, 3, figsize=(14, 3.7), constrained_layout=True)
     axes[0].plot(epochs, history["train_loss"], "o-", label="训练 Loss")
     axes[0].plot(epochs, history["val_loss"], "o-", label="验证 Loss")
     axes[0].set_ylabel("交叉熵 Loss")
     axes[1].plot(epochs, history["val_accuracy"], "o-", label="验证 Accuracy")
     axes[1].plot(epochs, history["val_macro_f1"], "s--", label="验证宏平均 F1")
     axes[1].set_ylim(0, 1)
+    axes[2].plot(epochs, history["grad_norm"], "o-", label="裁剪前梯度范数均值")
+    if result["config"].gradient_clip is not None:
+        axes[2].axhline(result["config"].gradient_clip, color="gray", linestyle=":", label="逐批裁剪阈值")
+    axes[2].set_ylabel("梯度范数（每轮批次均值）")
+    for axis in axes:
+        axis.axvline(result.get("selected_epoch", result["config"].epochs), color="gray", linestyle="--", alpha=.6, label="保存轮次")
     for axis in axes:
         axis.set_xlabel("训练轮数")
         axis.xaxis.set_major_locator(MaxNLocator(integer=True))
